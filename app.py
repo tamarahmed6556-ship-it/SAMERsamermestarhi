@@ -70,6 +70,8 @@ def update_cart_in_storage(cart):
     all_carts[uid] = cart
     save_persistent_cart(all_carts)
 
+about_us_content = "مرحباً بكم في متجر عتيق، مساحتنا الخاصة لحفظ عبق الماضي وإحياء حكايات القطع الفريدة والأنتيكات الأصلية. كل قطعة هنا تحمل تاريخاً وروحاً تستحق أن تروى."
+
 site_controls = {
     "block_posting": False,  
     "enable_search": True,
@@ -91,6 +93,9 @@ site_controls = {
     "use_logo_image": False,
     "logo_image": "",
     "logo_size": "130px",
+    "logo_zoom": 100,
+    "logo_pos_x": 50,
+    "logo_pos_y": 50,
     "enable_logo_pulse": True,
     "logo_animation_style": "rotate",
     "logo_pulse_speed": "3s",
@@ -263,6 +268,8 @@ product_detail_template = """
         .product-price { font-size: 18px; color: {{ config.colors.product_price }}; font-weight: bold; }
         .old-price { font-size: 14px; color: #888; text-decoration: line-through; }
         .discount-badge { background: #dc2626; color: #fff; padding: 2px 8px; font-size: 11px; font-weight: bold; border-radius: 4px; }
+        .condition-badge { display: inline-block; background: #1f2937; color: #38bdf8; border: 1px solid #38bdf8; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 15px; }
+        .category-badge { display: inline-block; background: #374151; color: #fbbf24; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 15px; margin-right: 5px; }
         .product-desc { background: #000; border: 1px solid #222; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: right; color: #ddd; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
         .buy-toggle-btn { display: block; text-align: center; background: {{ config.colors.whatsapp_btn }}; color: white; padding: 12px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; margin-bottom: 10px; border: none; width: 100%; cursor: pointer; }
         .share-btn { display: block; text-align: center; background: {{ config.colors.whatsapp_btn }}; color: white; padding: 12px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; margin-bottom: 10px; border: none; width: 100%; cursor: pointer; }
@@ -278,6 +285,10 @@ product_detail_template = """
     <div id="toast" class="toast-msg">✅ تم نسخ رابط المنتج</div>
     <div class="detail-container">
         <h1 class="product-title">{{ product.title }}</h1>
+        <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+            {% if product.category %}<div class="category-badge">🏷️ التصنيف: {{ product.category }}</div>{% endif %}
+            {% if product.condition %}<div class="condition-badge">⚙️ حالة القطعة: {{ product.condition }}</div>{% endif %}
+        </div>
         <div class="product-price-box">
             <div class="product-price">{{ product.price }}</div>
             {% if product.old_price %}<div class="old-price">{{ product.old_price }}</div>{% endif %}
@@ -345,6 +356,30 @@ product_detail_template = """
             });
         }
     </script>
+</body>
+</html>
+"""
+
+about_us_template = """
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>من نحن - {{ config.title }}</title>
+    <style>
+        body { background: {{ config.colors.bg_color }}; color: #fff; font-family: Tahoma, sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; box-sizing: border-box; }
+        .box { background: #111; border: 1px solid #222; padding: 30px; border-radius: 12px; width: 100%; max-width: 800px; margin-top: 20px; box-sizing: border-box; }
+        h1 { color: {{ config.colors.title }}; text-align: center; font-size: 24px; margin-bottom: 25px; }
+        .content { color: #ddd; font-size: 15px; line-height: 1.8; white-space: pre-wrap; text-align: right; background: #000; padding: 20px; border-radius: 8px; border: 1px solid #222; }
+        .back { display: block; text-align: center; margin-top: 25px; color: #25d366; text-decoration: none; font-weight: bold; font-size: 15px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>🏛️ قصة متجر عتيق</h1>
+        <div class="content">{{ about_text }}</div>
+        <a href="/" class="back">← العودة إلى المتجر الرئيسي</a>
+    </div>
 </body>
 </html>
 """
@@ -453,11 +488,12 @@ default_html_template = """
             background: {{ config.colors.logo_bg }}; 
             border: 2px solid {{ config.colors.logo_border }}; 
             border-radius: 50%; 
-            padding: 5px; 
+            padding: 0; 
             width: {{ controls.logo_size }}; 
             height: {{ controls.logo_size }}; 
             overflow: hidden; 
             box-sizing: border-box; 
+            position: relative;
             {% if controls.enable_logo_pulse %}
                 {% if controls.logo_animation_style == 'rotate' %}
                     animation: rotatingGlow {{ controls.logo_pulse_speed }} infinite linear;
@@ -468,7 +504,17 @@ default_html_template = """
                 {% endif %}
             {% endif %}
         }
-        .logo-img-container img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+        .logo-img-container img { 
+            position: absolute;
+            width: {{ controls.logo_zoom }}%; 
+            height: {{ controls.logo_zoom }}%; 
+            object-fit: contain; 
+            left: {{ controls.logo_pos_x }}%; 
+            top: {{ controls.logo_pos_y }}%; 
+            transform: translate(-{{ controls.logo_pos_x }}%, -{{ controls.logo_pos_y }}%);
+            border-radius: 50%; 
+            display: block; 
+        }
         .header p { color: {{ config.colors.subtitle }}; font-size: 13px; margin: 10px 0 0 0; }
         
         .search-filter-bar { width: 100%; max-width: 900px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; box-sizing: border-box; }
@@ -477,7 +523,7 @@ default_html_template = """
         .filter-dropdown-container { position: relative; display: inline-block; height: 46px; }
         .filter-icon-btn { background: {{ config.colors.filter_btn_bg }}; color: {{ config.colors.filter_btn_text }}; border: 1px solid #333; width: 46px; height: 46px; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
         .filter-icon-btn:hover { border-color: #25d366; }
-        .filter-content { display: none; position: absolute; left: 0; background-color: #111; min-width: 210px; box-shadow: 0px 8px 16px rgba(0,0,0,0.8); border: 1px solid #333; border-radius: 8px; z-index: 10; overflow: hidden; margin-top: 5px; }
+        .filter-content { display: none; position: absolute; left: 0; background-color: #111; min-width: 220px; box-shadow: 0px 8px 16px rgba(0,0,0,0.8); border: 1px solid #333; border-radius: 8px; z-index: 10; overflow: hidden; margin-top: 5px; }
         .filter-content div { color: {{ config.colors.filter_btn_text }}; padding: 10px 14px; cursor: pointer; font-size: 13px; text-align: right; border-bottom: 1px solid #222; }
         .filter-content div:last-child { border-bottom: none; }
         .filter-content div:hover { background-color: #222; color: #25d366; }
@@ -568,6 +614,7 @@ default_html_template = """
                 {% if controls.enable_cart %}
                     <a href="/cart">🛒 سلة المشتريات <span class="cart-badge">{{ cart_count }}</span></a>
                 {% endif %}
+                <a href="/about-us">🏛️ من نحن</a>
                 {% if controls.enable_reviews_page %}<a href="/reviews">⭐ آراء العملاء</a>{% endif %}
                 {% if controls.enable_copyright %}<a href="/copyright">📄 حقوق النشر والشروط</a>{% endif %}
                 <a href="/admin" style="color: #25d366; font-weight: bold;">🔐 لوحة التحكم</a>
@@ -589,6 +636,12 @@ default_html_template = """
         <div class="filter-dropdown-container">
             <button type="button" class="filter-icon-btn" onclick="toggleFilterMenu()" title="ترتيب وعرض الأقسام">⌃</button>
             <div id="filterMenu" class="filter-content">
+                <div onclick="selectSort('featured', '✨ قطع مميزة')" style="color: #fbbf24; font-weight: bold;">✨ قطع مميزة</div>
+                <div style="color: #888; font-size: 11px; padding: 4px 14px; background: #000; border-bottom: 1px solid #222;">-- تصنيفات المنتجات --</div>
+                <div onclick="selectSort('cat-ديكور منزلي', '🏠 ديكور منزلي')">🏠 ديكور منزلي</div>
+                <div onclick="selectSort('cat-شمعدانات ومزهريات', '🏺 شمعدانات ومزهريات')">🏺 شمعدانات ومزهريات</div>
+                <div onclick="selectSort('cat-كتب ومقتنيات', '📚 كتب ومقتنيات')">📚 كتب ومقتنيات</div>
+                <div style="border-top: 1px solid #333; margin-top: 2px;"></div>
                 {% if vis.sort_newest %}<div onclick="selectSort('newest', '{{ config.texts.sort_newest }}')">{{ config.texts.sort_newest }}</div>{% endif %}
                 {% if vis.sort_price_low %}<div onclick="selectSort('price-low', '{{ config.texts.sort_price_low }}')">{{ config.texts.sort_price_low }}</div>{% endif %}
                 {% if vis.sort_price_high %}<div onclick="selectSort('price-high', '{{ config.texts.sort_price_high }}')">{{ config.texts.sort_price_high }}</div>{% endif %}
@@ -638,7 +691,7 @@ default_html_template = """
             {% if products|length == 0 and gifts|length == 0 and vis.no_products %}<p style="color: {{ config.colors.no_products }}; text-align: center; grid-column: 1 / -1; padding: 20px;">{{ config.texts.no_products }}</p>{% endif %}
             
             {% for p in page_products %}
-                <div class="product-card regular-item {% if p.is_sold %}sold-card{% endif %}" data-title="{{ p.title }}" data-price="{{ p.numeric_price }}" data-id="{{ p.id }}" data-is-gift="false">
+                <div class="product-card regular-item {% if p.is_sold %}sold-card{% endif %}" data-title="{{ p.title }}" data-price="{{ p.numeric_price }}" data-id="{{ p.id }}" data-category="{{ p.category }}" data-featured="{{ '1' if p.is_featured else '0' }}" data-is-gift="false">
                     {% if p.is_sold %}<div class="sold-badge">تم البيع</div>{% endif %}
                     {% if p.discount_percent %}<div class="discount-badge-card">خصم {{ p.discount_percent }}%</div>{% endif %}
                     <div class="product-images">{% for img in p.images %}<img src="{{ img }}" alt="صورة">{% endfor %}</div>
@@ -715,6 +768,24 @@ default_html_template = """
             <div class="input-group">
                 {% if vis.label_title %}<label style="color: {{ config.colors.label_title }};">{{ config.texts.label_title }}</label>{% endif %}
                 <input type="text" name="title" {% if vis.input_title_placeholder %}placeholder="{{ config.texts.input_title_placeholder }}"{% endif %} required>
+            </div>
+            <div class="input-group">
+                <label style="color: {{ config.colors.label_title }};">تصنيف القطعة:</label>
+                <select name="category" style="background:#000; color:#fff; padding:10px; border-radius:8px; border:1px solid #333; width:100%; outline:none;" required>
+                    <option value="ديكور منزلي">🏠 ديكور منزلي</option>
+                    <option value="شمعدانات ومزهريات">🏺 شمعدانات ومزهريات</option>
+                    <option value="كتب ومقتنيات">📚 كتب ومقتنيات</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label style="color: {{ config.colors.label_title }};">حالة القطعة (اختياري):</label>
+                <select name="condition" style="background:#000; color:#fff; padding:10px; border-radius:8px; border:1px solid #333; width:100%; outline:none;">
+                    <option value="">-- بدون تحديد --</option>
+                    <option value="جيدة جداً">جيدة جداً</option>
+                    <option value="جيدة">جيدة</option>
+                    <option value="مستهلكة قليلاً">مستهلكة قليلاً</option>
+                    <option value="مهترئة قليلاً">مهترئة قليلاً</option>
+                </select>
             </div>
             <div class="input-group">
                 {% if vis.label_price %}<label style="color: {{ config.colors.label_title }};">{{ config.texts.label_price }} ({{ controls.currency_symbol }})</label>{% endif %}
@@ -838,6 +909,12 @@ default_html_template = """
                 if (sortType === 'gifts-only') {
                     heading.innerText = "{{ config.texts.heading_gifts }}";
                     heading.style.color = "{{ config.colors.gifts_heading }}";
+                } else if (sortType === 'featured') {
+                    heading.innerText = "✨ قطع مميزة";
+                    heading.style.color = "#fbbf24";
+                } else if (sortType.startsWith('cat-')) {
+                    heading.innerText = "📂 " + sortType.replace('cat-', '');
+                    heading.style.color = "#fbbf24";
                 } else {
                     heading.innerText = "{{ config.texts.heading_products }}";
                     heading.style.color = "{{ config.colors.products_heading }}";
@@ -930,20 +1007,37 @@ default_html_template = """
             }
 
             if (pagination) { pagination.style.display = (filter !== '' || sortVal !== 'newest') ? 'none' : 'flex'; }
+            
             regularCards.forEach(card => {
                 const title = card.getAttribute('data-title').toLowerCase();
-                card.style.display = title.includes(filter) ? "" : "none";
+                const category = card.getAttribute('data-category');
+                const isFeatured = card.getAttribute('data-featured') === '1';
+                
+                let matchesFilter = title.includes(filter);
+                let matchesCategory = true;
+
+                if (sortVal === 'featured') {
+                    matchesCategory = isFeatured;
+                } else if (sortVal.startsWith('cat-')) {
+                    const targetCat = sortVal.replace('cat-', '');
+                    matchesCategory = (category === targetCat);
+                }
+
+                card.style.display = (matchesFilter && matchesCategory) ? "" : "none";
             });
-            regularCards.sort((a, b) => {
-                const priceA = parseFloat(a.getAttribute('data-price')) || 0;
-                const priceB = parseFloat(b.getAttribute('data-price')) || 0;
-                const idA = parseInt(a.getAttribute('data-id')) || 0;
-                const idB = parseInt(b.getAttribute('data-id')) || 0;
-                if (sortVal === 'price-low') { return priceA - priceB; }
-                else if (sortVal === 'price-high') { return priceB - priceA; }
-                else { return idB - idA; }
-            });
-            regularCards.forEach(card => grid.appendChild(card));
+
+            if (!sortVal.startsWith('cat-') && sortVal !== 'featured') {
+                regularCards.sort((a, b) => {
+                    const priceA = parseFloat(a.getAttribute('data-price')) || 0;
+                    const priceB = parseFloat(b.getAttribute('data-price')) || 0;
+                    const idA = parseInt(a.getAttribute('data-id')) || 0;
+                    const idB = parseInt(b.getAttribute('data-id')) || 0;
+                    if (sortVal === 'price-low') { return priceA - priceB; }
+                    else if (sortVal === 'price-high') { return priceB - priceA; }
+                    else { return idB - idA; }
+                });
+                regularCards.forEach(card => grid.appendChild(card));
+            }
         }
     </script>
 </body>
@@ -1108,11 +1202,12 @@ admin_template = """
         button { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; background: #25d366; color: white; border: none; font-weight: bold; cursor: pointer; font-size: 15px; }
         button:disabled { background: #444 !important; cursor: not-allowed; }
         .product-row { display: flex; justify-content: space-between; align-items: center; background: #000; padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #222; gap: 10px; }
-        .product-actions { display: flex; gap: 8px; align-items: center; }
-        .delete-btn { background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
-        .sold-btn { background: #d97706; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
-        .unsold-btn { background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
-        .discount-btn { background: #ec4899; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
+        .product-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .delete-btn { background: #dc2626; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
+        .sold-btn { background: #d97706; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
+        .unsold-btn { background: #2563eb; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
+        .discount-btn { background: #ec4899; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
+        .featured-btn { background: #fbbf24; color: #000; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; font-weight: bold; }
         .back-link { display: block; text-align: center; margin-top: 20px; color: #25d366; text-decoration: none; font-size: 14px; font-weight: bold; }
         .section-box { border-top: 1px solid #222; margin-top: 25px; padding-top: 20px; }
         .row-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #000; padding: 6px 10px; border-radius: 6px; border: 1px solid #222; }
@@ -1128,6 +1223,8 @@ admin_template = """
         .forgot-pass-btn { display: block; text-align: center; background: #25d366; color: #000; padding: 10px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: bold; margin-top: 10px; }
         .forgot-pass-btn:hover { background: #22bf5b; }
         .stat-box { background: #000; border: 1px solid #333; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .preview-circle-box { width: 130px; height: 130px; border: 2px dashed #25d366; border-radius: 50%; margin: 15px auto; overflow: hidden; position: relative; background: #000; display: flex; align-items: center; justify-content: center; }
+        .preview-circle-box img { position: absolute; max-width: none; border-radius: 50%; }
     </style>
 </head>
 <body>
@@ -1153,6 +1250,15 @@ admin_template = """
             {% endif %}
         {% else %}
             <p style="color: #25d366; text-align: center; margin-bottom: 15px; font-weight: bold;">تم تسجيل الدخول بنجاح</p>
+
+            <div class="collapsible-header" onclick="toggleSection('sec_about')"><span>🏛️ تحرير وتعديل صفحة "من نحن"</span><span id="icon-sec_about">▼</span></div>
+            <div id="sec_about" class="collapsible-content">
+                <form action="/update-about-us" method="POST">
+                    <label>نص قصة متجر عتيق:</label>
+                    <textarea name="about_text" rows="6" required>{{ about_text }}</textarea>
+                    <button type="submit" style="background: #25d366; margin-top: 10px;">حفظ قصة المتجر ✅</button>
+                </form>
+            </div>
 
             <div class="collapsible-header" onclick="toggleSection('sec_stats')"><span>📊 إحصائيات المتجر والزيارات</span><span id="icon-sec_stats">▼</span></div>
             <div id="sec_stats" class="collapsible-content">
@@ -1263,12 +1369,20 @@ admin_template = """
                     <button type="submit" style="margin-top: 15px;">حفظ التصميم</button>
                 </form>
             </div>
-            <div class="collapsible-header" onclick="toggleSection('sec_logo')"><span>🖼️ إدارة صورة شعار الموقع الدائري والحجم والحركات</span><span id="icon-sec_logo">▼</span></div>
+            <div class="collapsible-header" onclick="toggleSection('sec_logo')"><span>🖼️ تعديل الشعار الدائري (معاينة وتحكم بالحجم والإزاحة)</span><span id="icon-sec_logo">▼</span></div>
             <div id="sec_logo" class="collapsible-content">
                 <form action="/update-logo" method="POST" enctype="multipart/form-data">
                     <label class="checkbox-label"><input type="checkbox" name="use_logo_image" {% if controls.use_logo_image %}checked{% endif %}> تفعيل صورة الشعار الدائري في الموقع</label>
-                    <label>اختر صورة الشعار (موصى بها مربعة لتبدو دائرية فخمة):</label><input type="file" name="logo_file" accept="image/*" style="color: #fff; margin-bottom: 12px;">
-                    <label>حجم الشعار الدائري:</label>
+                    <label>رفع صورة الشعار:</label><input type="file" name="logo_file" id="logoFileInput" accept="image/*" style="color: #fff; margin-bottom: 12px;" onchange="previewLogoImage(event)">
+                    
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <span style="font-size: 12px; color: #fbbf24; display: block; margin-bottom: 5px;">معاينة دائرية حقيقية للشعار:</span>
+                        <div class="preview-circle-box" id="logoPreviewContainer">
+                            <img id="logoPreviewImg" src="{{ controls.logo_image }}" style="width: {{ controls.logo_zoom }}%; height: {{ controls.logo_zoom }}%; left: {{ controls.logo_pos_x }}%; top: {{ controls.logo_pos_y }}%; transform: translate(-{{ controls.logo_pos_x }}%, -{{ controls.logo_pos_y }}%); {% if not controls.logo_image %}display:none;{% endif %}" alt="معاينة">
+                        </div>
+                    </div>
+
+                    <label>حجم إطار الشعار:</label>
                     <select name="logo_size" style="background:#000; color:#fff; padding:10px; border-radius:8px; border:1px solid #333; margin-bottom:10px; width:100%;">
                         <option value="90px" {% if controls.logo_size == '90px' %}selected{% endif %}>صغير (90 بكسل)</option>
                         <option value="110px" {% if controls.logo_size == '110px' %}selected{% endif %}>وسط (110 بكسل)</option>
@@ -1276,6 +1390,17 @@ admin_template = """
                         <option value="170px" {% if controls.logo_size == '170px' %}selected{% endif %}>كبير (170 بكسل)</option>
                         <option value="210px" {% if controls.logo_size == '210px' %}selected{% endif %}>كبير جداً (210 بكسل)</option>
                     </select>
+
+                    <label>تكبير/تصغير صورة الشعار داخل الإطار (%):</label>
+                    <input type="range" name="logo_zoom" min="50" max="300" value="{{ controls.logo_zoom }}" style="width:100%; margin-bottom:10px;" oninput="document.getElementById('zoomVal').innerText = this.value + '%'; updatePreviewStyle();" id="logoZoomRange">
+                    <span id="zoomVal" style="font-size:12px; color:#25d366; display:block; margin-bottom:10px;">{{ controls.logo_zoom }}%</span>
+
+                    <label>تحريك الشعار أفقياً (يمين / يسار):</label>
+                    <input type="range" name="logo_pos_x" min="0" max="100" value="{{ controls.logo_pos_x }}" style="width:100%; margin-bottom:10px;" oninput="updatePreviewStyle();" id="logoPosXRange">
+
+                    <label>تحريك الشعار عمودياً (أعلى / أسفل):</label>
+                    <input type="range" name="logo_pos_y" min="0" max="100" value="{{ controls.logo_pos_y }}" style="width:100%; margin-bottom:15px;" oninput="updatePreviewStyle();" id="logoPosYRange">
+
                     <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
                     <label class="checkbox-label"><input type="checkbox" name="enable_logo_pulse" {% if controls.enable_logo_pulse %}checked{% endif %}> تفعيل إضاءة وتوهج الشعار الدائري ✨</label>
                     
@@ -1297,7 +1422,10 @@ admin_template = """
                         <input type="color" name="logo_pulse_color" value="{{ controls.logo_pulse_color }}">
                         <span style="font-size: 12px; color: #aaa;">اختر لون التوهج</span>
                     </div>
-                    <button type="submit" style="background: #25d366; margin-top: 10px;">حفظ إعدادات الشعار ✅</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" style="background: #25d366; margin-top: 10px; flex: 1;">حفظ الشعار ✅</button>
+                        <button type="reset" style="background: #dc2626; margin-top: 10px; flex: 1;" onclick="location.reload()">إلغاء ✖</button>
+                    </div>
                 </form>
             </div>
             
@@ -1401,29 +1529,56 @@ admin_template = """
                 <h3>➕ إضافة منتج جديد</h3>
                 <form action="/admin-add-product" method="POST" enctype="multipart/form-data">
                     <label>{{ config.texts.label_title }}</label><input type="text" name="title" required>
+                    <label>تصنيف القطعة:</label>
+                    <select name="category" style="background:#000; color:#fff; padding:10px; border-radius:8px; border:1px solid #333; width:100%; outline:none;" required>
+                        <option value="ديكور منزلي">🏠 ديكور منزلي</option>
+                        <option value="شمعدانات ومزهريات">🏺 شمعدانات ومزهريات</option>
+                        <option value="كتب ومقتنيات">📚 كتب ومقتنيات</option>
+                    </select>
+                    <label>حالة القطعة (اختياري):</label>
+                    <select name="condition" style="background:#000; color:#fff; padding:10px; border-radius:8px; border:1px solid #333; width:100%; outline:none;">
+                        <option value="">-- بدون تحديد --</option>
+                        <option value="جيدة جداً">جيدة جداً</option>
+                        <option value="جيدة">جيدة</option>
+                        <option value="مستهلكة قليلاً">مستهلكة قليلاً</option>
+                        <option value="مهترئة قليلاً">مهترئة قليلاً</option>
+                    </select>
                     <label>{{ config.texts.label_price }} (أدخل الرقم فقط - يتم إضافة {{ controls.currency_symbol }} تلقائياً)</label><input type="text" name="price">
                     <label>{{ config.texts.label_old_price }} (اختياري للتخفيض)</label><input type="text" name="old_price" placeholder="مثال: 25">
                     <label>{{ config.texts.label_quantity }}</label><input type="text" name="quantity" value="1">
                     <label>{{ config.texts.label_description }}</label><textarea name="description" rows="3"></textarea>
+                    <label class="checkbox-label" style="margin-top: 10px;"><input type="checkbox" name="is_featured"> تعيين كقطعة مميزة ⭐</label>
                     <label>{{ config.texts.upload_text }}</label><input type="file" name="images" multiple accept="image/*" style="color: #fff; margin-bottom: 10px;">
                     <button type="submit">نشر المنتج</button>
                 </form>
             </div>
-            <div class="collapsible-header" onclick="toggleSection('sec_products')"><span>📦 قائمة المنتجات الحالية</span><span id="icon-sec_products">▼</span></div>
+            <div class="collapsible-header" onclick="toggleSection('sec_products')"><span>📦 قائمة المنتجات الحالية وتعديل التصنيفات والتميز</span><span id="icon-sec_products">▼</span></div>
             <div id="sec_products" class="collapsible-content">
                 {% for p in products %}
                     <div class="product-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                            <span><b>{{ p.title }}</b> (السعر الحالي: {{ p.price }}{% if p.old_price %} - القديم: {{ p.old_price }}{% endif %})</span>
+                        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; flex-wrap: wrap; gap: 5px;">
+                            <span><b>{{ p.title }}</b> (السعر: {{ p.price }} | التصنيف: {{ p.category }})</span>
                             <div class="product-actions">
+                                <form action="/toggle-featured/{{ p.id }}" method="POST" style="margin:0;"><button type="submit" class="featured-btn">{% if p.is_featured %}⭐ إلغاء التميز{% else %}⭐ مميزة{% endif %}</button></form>
                                 <form action="/toggle-sold/{{ p.id }}" method="POST" style="margin:0;"><button type="submit" class="{% if p.is_sold %}unsold-btn{% else %}sold-btn{% endif %}">{% if p.is_sold %}إلغاء البيع{% else %}تم البيع{% endif %}</button></form>
                                 <form action="/delete/{{ p.id }}" method="POST" style="margin:0;"><button type="submit" class="delete-btn">حذف</button></form>
                             </div>
                         </div>
-                        <form action="/update-product-discount/{{ p.id }}" method="POST" style="display: flex; gap: 6px; width: 100%; margin: 0; align-items: center;">
-                            <input type="text" name="new_price" placeholder="السعر الجديد (مثال: 10)" style="margin:0; font-size:11px; padding:6px;" required>
-                            <input type="text" name="old_price" placeholder="السعر القديم (مثال: 15)" style="margin:0; font-size:11px; padding:6px;" required>
-                            <button type="submit" class="discount-btn" style="margin:0; width: auto; padding: 6px 12px;">تطبيق الخصم 🏷️</button>
+                        <form action="/update-product-details/{{ p.id }}" method="POST" style="display: flex; gap: 6px; width: 100%; margin: 0; align-items: center; flex-wrap: wrap;">
+                            <input type="text" name="new_price" value="{{ p.numeric_price }}" placeholder="السعر" style="margin:0; font-size:11px; padding:6px; flex:1;" required>
+                            <select name="category" style="background:#000; color:#fff; font-size:11px; padding:6px; border:1px solid #333; border-radius:6px; flex:1;">
+                                <option value="ديكور منزلي" {% if p.category == 'ديكور منزلي' %}selected{% endif %}>ديكور منزلي</option>
+                                <option value="شمعدانات ومزهريات" {% if p.category == 'شمعدانات ومزهريات' %}selected{% endif %}>شمعدانات ومزهريات</option>
+                                <option value="كتب ومقتنيات" {% if p.category == 'كتب ومقتنيات' %}selected{% endif %}>كتب ومقتنيات</option>
+                            </select>
+                            <select name="condition" style="background:#000; color:#fff; font-size:11px; padding:6px; border:1px solid #333; border-radius:6px; flex:1;">
+                                <option value="">-- بدون حالة --</option>
+                                <option value="جيدة جداً" {% if p.condition == 'جيدة جداً' %}selected{% endif %}>جيدة جداً</option>
+                                <option value="جيدة" {% if p.condition == 'جيدة' %}selected{% endif %}>جيدة</option>
+                                <option value="مستهلكة قليلاً" {% if p.condition == 'مستهلكة قليلاً' %}selected{% endif %}>مستهلكة قليلاً</option>
+                                <option value="مهترئة قليلاً" {% if p.condition == 'مهترئة قليلاً' %}selected{% endif %}>مهترئة قليلاً</option>
+                            </select>
+                            <button type="submit" class="discount-btn" style="margin:0; width: auto; padding: 6px 12px;">حفظ التعديلات 🏷️</button>
                         </form>
                     </div>
                 {% endfor %}
@@ -1437,6 +1592,28 @@ admin_template = """
             const icon = document.getElementById('icon-' + secId);
             if (content.style.display === 'block') { content.style.display = 'none'; icon.innerText = '▼'; }
             else { content.style.display = 'block'; icon.innerText = '▲'; }
+        }
+        function previewLogoImage(event) {
+            const reader = new FileReader();
+            reader.onload = function(){
+                const output = document.getElementById('logoPreviewImg');
+                output.src = reader.result;
+                output.style.display = 'block';
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        }
+        function updatePreviewStyle() {
+            const img = document.getElementById('logoPreviewImg');
+            const zoom = document.getElementById('logoZoomRange').value;
+            const posX = document.getElementById('logoPosXRange').value;
+            const posY = document.getElementById('logoPosYRange').value;
+            if(img) {
+                img.style.width = zoom + '%';
+                img.style.height = zoom + '%';
+                img.style.left = posX + '%';
+                img.style.top = posY + '%';
+                img.style.transform = 'translate(-' + posX + '%, -' + posY + '%)';
+            }
         }
         {% if is_locked %}
         let remainingSeconds = {{ remaining_seconds }};
@@ -1500,6 +1677,17 @@ def index():
     end_idx = start_idx + per_page
     page_products = products[start_idx:end_idx]
     return render_template_string(current_html_template, products=products, page_products=page_products, gifts=gifts, current_page=page, total_pages=total_pages, auctions=auctions, config=site_config, controls=site_controls, vis=text_visibility, cart_count=len(cart), error=None)
+
+@app.route('/about-us')
+def about_us_page():
+    return render_template_string(about_us_template, about_text=about_us_content, config=site_config)
+
+@app.route('/update-about-us', methods=['POST'])
+def update_about_us():
+    global about_us_content
+    text = request.form.get('about_text', '').strip()
+    if text: about_us_content = text
+    return redirect(url_for('admin'))
 
 @app.route('/cart')
 def cart_page():
@@ -1581,7 +1769,7 @@ def place_bid(a_id):
         msg = f"مرحباً سامر، لدي مزايدة جديدة\nعلى القطعة: {auction['title']}\nقيمة المزايدة: {formatted_bid_amount}\nاسم المزايد: {bidder_name}\nرقم الهاتف: {bidder_phone}"
         encoded_msg = urllib.parse.quote(msg)
         target_setting = site_controls.get('admin_whatsapp', '962790000000')
-        final_url = get_destination_url(target_setting, encoded_msg)
+        final_url = f"https://wa.me/{target_setting}?text={encoded_msg}"
         return redirect(final_url)
         
     return redirect(url_for('auction_detail', a_id=a_id))
@@ -1602,7 +1790,7 @@ def buy_product(p_id):
         msg = f"مرحباً سامر، لدي طلب شراء جديد\nعلى القطعة: {product['title']} (السعر: {product['price']})\nاسم الزبون: {full_name}\nالمحافظة: {province}\nالشارع: {street}\nرقم الهاتف: {phone}"
         encoded_msg = urllib.parse.quote(msg)
         target_setting = site_controls.get('admin_whatsapp', '962790000000')
-        final_url = get_destination_url(target_setting, encoded_msg)
+        final_url = f"https://wa.me/{target_setting}?text={encoded_msg}"
         return redirect(final_url)
     return redirect(url_for('product_detail', p_id=p_id))
 
@@ -1692,20 +1880,27 @@ def update_gift_discount(g_id):
             g['discount_percent'] = discount_percent
     return redirect(url_for('admin'))
 
-@app.route('/update-product-discount/<int:p_id>', methods=['POST'])
-def update_product_discount(p_id):
+@app.route('/update-product-details/<int:p_id>', methods=['POST'])
+def update_product_details(p_id):
     global products
     raw_new = request.form.get('new_price', '').strip()
-    raw_old = request.form.get('old_price', '').strip()
+    category = request.form.get('category', '').strip()
+    condition = request.form.get('condition', '').strip()
     for p in products:
         if p['id'] == p_id:
             if raw_new:
                 p['price'] = format_price(raw_new)
                 try: p['numeric_price'] = float(re.sub(r'[^0-9.]', '', str(raw_new)))
                 except Exception: pass
-            old_price, discount_percent = calculate_discount(raw_new, raw_old)
-            p['old_price'] = old_price
-            p['discount_percent'] = discount_percent
+            if category: p['category'] = category
+            p['condition'] = condition
+    return redirect(url_for('admin'))
+
+@app.route('/toggle-featured/<int:p_id>', methods=['POST'])
+def toggle_featured(p_id):
+    global products
+    for p in products:
+        if p['id'] == p_id: p['is_featured'] = not p.get('is_featured', False)
     return redirect(url_for('admin'))
 
 @app.route('/admin-add-auction', methods=['POST'])
@@ -1802,6 +1997,8 @@ def add_product():
     global product_id_counter
     if site_controls['block_posting']: return redirect(url_for('index'))
     title = request.form.get('title')
+    category = request.form.get('category', 'ديكور منزلي').strip()
+    condition = request.form.get('condition', '').strip()
     raw_price = request.form.get('price', '')
     raw_old = request.form.get('old_price', '')
     price = format_price(raw_price)
@@ -1813,7 +2010,7 @@ def add_product():
     try: numeric_price = float(re.sub(r'[^0-9.]', '', str(raw_price)))
     except Exception: pass
     if title:
-        products.insert(0, {"id": product_id_counter, "title": title, "price": price, "old_price": old_price, "discount_percent": discount_percent, "numeric_price": numeric_price, "quantity": quantity, "description": description, "contact_type": "phone", "contact_value": "", "images": [img for img in images_list if img], "is_sold": False, "views": 0})
+        products.insert(0, {"id": product_id_counter, "title": title, "category": category, "condition": condition, "price": price, "old_price": old_price, "discount_percent": discount_percent, "numeric_price": numeric_price, "quantity": quantity, "description": description, "is_featured": False, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
         product_id_counter += 1
     return redirect(url_for('index'))
 
@@ -1821,18 +2018,21 @@ def add_product():
 def admin_add_product():
     global product_id_counter
     title = request.form.get('title')
+    category = request.form.get('category', 'ديكور منزلي').strip()
+    condition = request.form.get('condition', '').strip()
     raw_price = request.form.get('price', '')
     raw_old = request.form.get('old_price', '')
     price = format_price(raw_price)
     old_price, discount_percent = calculate_discount(raw_price, raw_old)
     quantity = request.form.get('quantity', '1').strip()
     description = request.form.get('description', '').strip()
+    is_featured = True if request.form.get('is_featured') == 'on' else False
     images_list = [process_and_compress_image(f) for f in request.files.getlist('images') if f and f.filename != '']
     numeric_price = 0.0
     try: numeric_price = float(re.sub(r'[^0-9.]', '', str(raw_price)))
     except Exception: pass
     if title:
-        products.insert(0, {"id": product_id_counter, "title": title, "price": price, "old_price": old_price, "discount_percent": discount_percent, "numeric_price": numeric_price, "quantity": quantity, "description": description, "contact_type": "phone", "contact_value": "", "images": [img for img in images_list if img], "is_sold": False, "views": 0})
+        products.insert(0, {"id": product_id_counter, "title": title, "category": category, "condition": condition, "price": price, "old_price": old_price, "discount_percent": discount_percent, "numeric_price": numeric_price, "quantity": quantity, "description": description, "is_featured": is_featured, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
         product_id_counter += 1
     return redirect(url_for('admin'))
 
@@ -1853,6 +2053,15 @@ def update_logo():
         
     size = request.form.get('logo_size')
     if size: site_controls['logo_size'] = size
+
+    try: site_controls['logo_zoom'] = int(request.form.get('logo_zoom', 100))
+    except ValueError: pass
+
+    try: site_controls['logo_pos_x'] = int(request.form.get('logo_pos_x', 50))
+    except ValueError: pass
+
+    try: site_controls['logo_pos_y'] = int(request.form.get('logo_pos_y', 50))
+    except ValueError: pass
 
     logo_file = request.files.get('logo_file')
     if logo_file and logo_file.filename != '':
@@ -1915,7 +2124,7 @@ def toggle_sold(p_id):
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
-    global ADMIN_PASSWORD, current_html_template, login_attempts, lockout_until, site_stats
+    global ADMIN_PASSWORD, current_html_template, login_attempts, lockout_until, site_stats, about_us_content
     current_time = time.time()
     is_locked = current_time < lockout_until
     remaining_seconds = int(lockout_until - current_time) if is_locked else 0
@@ -1923,7 +2132,7 @@ def admin():
     if request.method == 'POST':
         if 'password' in request.form:
             if is_locked:
-                return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=False, error=True, is_locked=True, remaining_seconds=remaining_seconds, raw_template=current_html_template, color_names_ar=color_names_ar)
+                return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=False, error=True, is_locked=True, remaining_seconds=remaining_seconds, raw_template=current_html_template, color_names_ar=color_names_ar)
             if request.form.get('password') == ADMIN_PASSWORD:
                 session['admin_logged'] = True
                 login_attempts = 0
@@ -1935,10 +2144,10 @@ def admin():
                     is_locked = True
                     remaining_seconds = 900
                     login_attempts = 0
-                return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=False, error=error, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
+                return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=False, error=error, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
                 
     authorized = session.get('admin_logged', False)
-    return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=authorized, error=False, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
+    return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=authorized, error=False, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
