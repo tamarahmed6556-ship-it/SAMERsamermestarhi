@@ -1600,7 +1600,6 @@ admin_template = """
                 output.src = reader.result;
                 output.style.display = 'block';
                 
-                // تعيين زوم افتراضي 150% وإزاحة 50% لتظهر بوسط المعاينة مباشرة
                 const zoomRange = document.getElementById('logoZoomRange');
                 const posXRange = document.getElementById('logoPosXRange');
                 const posYRange = document.getElementById('logoPosYRange');
@@ -1936,7 +1935,7 @@ def admin_add_auction():
     current_price = format_price(raw_price)
     min_bid = format_price(raw_min)
     max_price = format_price(raw_max) if raw_max else ""
-    images_list = [process_and_compress_image(f) for f in request.files.getlist('auction_images'] if f and f.filename != '']
+    images_list = [process_and_compress_image(f) for f in request.files.getlist('auction_images') if f and f.filename != '']
     if title and current_price:
         auctions.insert(0, {"id": auction_id_counter, "title": title, "description": description, "current_price": current_price, "min_bid": min_bid, "max_price": max_price, "end_time": end_time.isoformat(), "images": [img for img in images_list if img], "bids": []})
         auction_id_counter += 1
