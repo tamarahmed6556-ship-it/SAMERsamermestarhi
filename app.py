@@ -20,6 +20,10 @@ reviews = [
     {"id": 1, "name": "محمد أحمد", "rating": 5, "comment": "متجر فخم جداً والقطع أصلية وتوصيل سريع، شكراً لكم!"},
     {"id": 2, "name": "عمر خالد", "rating": 5, "comment": "تجربة شراء ممتازة والتعامل راقي جداً."}
 ]
+
+# قائمة التصنيفات الديناميكية للمتجر
+categories_list = ["ديكور منزلي", "شمعدانات ومزهريات", "كتب ومقتنيات"]
+
 product_id_counter = 1
 gift_id_counter = 1
 auction_id_counter = 1
@@ -141,10 +145,7 @@ text_visibility = {
     "sort_newest": True,
     "sort_price_low": True,
     "sort_price_high": True,
-    "filter_gifts": True,
-    "cat_1_name": True,
-    "cat_2_name": True,
-    "cat_3_name": True
+    "filter_gifts": True
 }
 
 site_config = {
@@ -184,10 +185,7 @@ site_config = {
         "sort_newest": "🕒 الأحدث",
         "sort_price_low": "💵 السعر: من الأقل للأعلى",
         "sort_price_high": "📈 السعر: من الأعلى للأقل",
-        "filter_gifts": "🎁 عرض الهدايا فقط",
-        "cat_1_name": "ديكور منزلي",
-        "cat_2_name": "شمعدانات ومزهريات",
-        "cat_3_name": "كتب ومقتنيات"
+        "filter_gifts": "🎁 عرض الهدايا فقط"
     },
     "colors": {
         "bg_color": "#000000",             
@@ -644,9 +642,9 @@ default_html_template = """
             <div id="filterMenu" class="filter-content">
                 <div onclick="selectSort('featured', '✨ قطع مميزة')" style="color: #fbbf24; font-weight: bold;">✨ قطع مميزة</div>
                 <div style="color: #888; font-size: 11px; padding: 4px 14px; background: #000; border-bottom: 1px solid #222;">-- تصنيفات المنتجات --</div>
-                <div onclick="selectSort('cat-{{ config.texts.cat_1_name }}', '🏠 {{ config.texts.cat_1_name }}')">🏠 {{ config.texts.cat_1_name }}</div>
-                <div onclick="selectSort('cat-{{ config.texts.cat_2_name }}', '🏺 {{ config.texts.cat_2_name }}')">🏺 {{ config.texts.cat_2_name }}</div>
-                <div onclick="selectSort('cat-{{ config.texts.cat_3_name }}', '📚 {{ config.texts.cat_3_name }}')">📚 {{ config.texts.cat_3_name }}</div>
+                {% for cat in cats %}
+                    <div onclick="selectSort('cat-{{ cat }}', '📂 {{ cat }}')">📂 {{ cat }}</div>
+                {% endfor %}
                 <div style="border-top: 1px solid #333; margin-top: 2px;"></div>
                 {% if vis.sort_newest %}<div onclick="selectSort('newest', '{{ config.texts.sort_newest }}')">{{ config.texts.sort_newest }}</div>{% endif %}
                 {% if vis.sort_price_low %}<div onclick="selectSort('price-low', '{{ config.texts.sort_price_low }}')">{{ config.texts.sort_price_low }}</div>{% endif %}
@@ -778,9 +776,9 @@ default_html_template = """
             <div class="input-group">
                 <label style="color: {{ config.colors.label_title }};">تصنيف القطعة:</label>
                 <select name="category" style="background:#000; color:#fff; padding:10px; border-radius:8px; border:1px solid #333; width:100%; outline:none;" required>
-                    <option value="{{ config.texts.cat_1_name }}">{{ config.texts.cat_1_name }}</option>
-                    <option value="{{ config.texts.cat_2_name }}">{{ config.texts.cat_2_name }}</option>
-                    <option value="{{ config.texts.cat_3_name }}">{{ config.texts.cat_3_name }}</option>
+                    {% for cat in cats %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="input-group">
@@ -1266,6 +1264,27 @@ admin_template = """
                 </form>
             </div>
 
+            <div class="collapsible-header" onclick="toggleSection('sec_categories')"><span>🏷️ إدارة وإضافة تصنيفات جديدة</span><span id="icon-sec_categories">▼</span></div>
+            <div id="sec_categories" class="collapsible-content">
+                <form action="/add-category" method="POST" style="margin-bottom: 15px;">
+                    <label>اسم التصنيف الجديد:</label>
+                    <input type="text" name="new_category" placeholder="أدخل اسم التصنيف..." required>
+                    <button type="submit" style="background: #25d366; margin-top: 5px;">إضافة تصنيف جديد ➕</button>
+                </form>
+                <h4 style="color: #fbbf24; font-size: 13px; margin: 15px 0 8px 0;">التصنيفات الحالية:</h4>
+                {% for cat in cats %}
+                    <div class="product-row">
+                        <span>📂 {{ cat }}</span>
+                        {% if cats|length > 1 %}
+                            <form action="/delete-category" method="POST" style="margin:0;">
+                                <input type="hidden" name="category_name" value="{{ cat }}">
+                                <button type="submit" class="delete-btn">حذف</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+
             <div class="collapsible-header" onclick="toggleSection('sec_stats')"><span>📊 إحصائيات المتجر والزيارات</span><span id="icon-sec_stats">▼</span></div>
             <div id="sec_stats" class="collapsible-content">
                 <div class="stat-box">
@@ -1345,35 +1364,18 @@ admin_template = """
                     <button type="submit" style="margin-top: 10px;">حفظ الخصائص</button>
                 </form>
             </div>
-            <div class="collapsible-header" onclick="toggleSection('sec2')"><span>📝 إدارة النصوص وتسميات التصنيفات</span><span id="icon-sec2">▼</span></div>
+            <div class="collapsible-header" onclick="toggleSection('sec2')"><span>📝 إدارة النصوص وعناوين المتجر</span><span id="icon-sec2">▼</span></div>
             <div id="sec2" class="collapsible-content">
                 <form action="/update-texts" method="POST">
-                    <h4 style="color: #fbbf24; font-size: 13px; margin-bottom: 10px;">🏷️ أسماء التصنيفات الثلاثة في المتجر:</h4>
-                    <div class="row-item">
-                        <span>اسم التصنيف الأول:</span>
-                        <input type="text" name="txt_cat_1_name" value="{{ config.texts.cat_1_name }}" required>
-                    </div>
-                    <div class="row-item">
-                        <span>اسم التصنيف الثاني:</span>
-                        <input type="text" name="txt_cat_2_name" value="{{ config.texts.cat_2_name }}" required>
-                    </div>
-                    <div class="row-item">
-                        <span>اسم التصنيف الثالث:</span>
-                        <input type="text" name="txt_cat_3_name" value="{{ config.texts.cat_3_name }}" required>
-                    </div>
-                    <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
-                    <h4 style="color: #fbbf24; font-size: 13px; margin-bottom: 10px;">📝 باقي نصوص وعناوين المتجر:</h4>
                     {% for key, val in config.texts.items() %}
-                        {% if not key.startswith('cat_') %}
-                            <div class="row-item">
-                                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #fff; cursor: pointer; width: 45%; margin: 0;">
-                                    <input type="checkbox" name="vis_{{ key }}" {% if vis[key] %}checked{% endif %}>{{ key }}
-                                </label>
-                                <input type="text" name="txt_{{ key }}" value="{{ val }}" required>
-                            </div>
-                        {% endif %}
+                        <div class="row-item">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #fff; cursor: pointer; width: 45%; margin: 0;">
+                                <input type="checkbox" name="vis_{{ key }}" {% if vis[key] %}checked{% endif %}>{{ key }}
+                            </label>
+                            <input type="text" name="txt_{{ key }}" value="{{ val }}" required>
+                        </div>
                     {% endfor %}
-                    <button type="submit" style="margin-top: 15px;">حفظ النصوص والتصنيفات ✅</button>
+                    <button type="submit" style="margin-top: 15px;">حفظ النصوص ✅</button>
                 </form>
             </div>
             <div class="collapsible-header" onclick="toggleSection('sec3')"><span>🎨 تعديل الألوان والتصميم وخلفية الموقع</span><span id="icon-sec3">▼</span></div>
@@ -1554,9 +1556,9 @@ admin_template = """
                     <label>{{ config.texts.label_title }}</label><input type="text" name="title" required>
                     <label>تصنيف القطعة:</label>
                     <select name="category" style="background:#000; color:#fff; padding:10px; border-radius:8px; border:1px solid #333; width:100%; outline:none;" required>
-                        <option value="{{ config.texts.cat_1_name }}">{{ config.texts.cat_1_name }}</option>
-                        <option value="{{ config.texts.cat_2_name }}">{{ config.texts.cat_2_name }}</option>
-                        <option value="{{ config.texts.cat_3_name }}">{{ config.texts.cat_3_name }}</option>
+                        {% for cat in cats %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
                     </select>
                     <label>حالة القطعة (اختياري):</label>
                     <select name="condition" style="background:#000; color:#fff; padding:10px; border-radius:8px; border:1px solid #333; width:100%; outline:none;">
@@ -1590,9 +1592,9 @@ admin_template = """
                         <form action="/update-product-details/{{ p.id }}" method="POST" style="display: flex; gap: 6px; width: 100%; margin: 0; align-items: center; flex-wrap: wrap;">
                             <input type="text" name="new_price" value="{{ p.numeric_price }}" placeholder="السعر" style="margin:0; font-size:11px; padding:6px; flex:1;" required>
                             <select name="category" style="background:#000; color:#fff; font-size:11px; padding:6px; border:1px solid #333; border-radius:6px; flex:1;">
-                                <option value="{{ config.texts.cat_1_name }}" {% if p.category == config.texts.cat_1_name %}selected{% endif %}>{{ config.texts.cat_1_name }}</option>
-                                <option value="{{ config.texts.cat_2_name }}" {% if p.category == config.texts.cat_2_name %}selected{% endif %}>{{ config.texts.cat_2_name }}</option>
-                                <option value="{{ config.texts.cat_3_name }}" {% if p.category == config.texts.cat_3_name %}selected{% endif %}>{{ config.texts.cat_3_name }}</option>
+                                {% for cat in cats %}
+                                    <option value="{{ cat }}" {% if p.category == cat %}selected{% endif %}>{{ cat }}</option>
+                                {% endfor %}
                             </select>
                             <select name="condition" style="background:#000; color:#fff; font-size:11px; padding:6px; border:1px solid #333; border-radius:6px; flex:1;">
                                 <option value="">-- بدون حالة --</option>
@@ -1715,7 +1717,7 @@ def index():
     start_idx = (page - 1) * per_page
     end_idx = start_idx + per_page
     page_products = products[start_idx:end_idx]
-    return render_template_string(current_html_template, products=products, page_products=page_products, gifts=gifts, current_page=page, total_pages=total_pages, auctions=auctions, config=site_config, controls=site_controls, vis=text_visibility, cart_count=len(cart), error=None)
+    return render_template_string(current_html_template, products=products, page_products=page_products, gifts=gifts, current_page=page, total_pages=total_pages, auctions=auctions, config=site_config, controls=site_controls, vis=text_visibility, cats=categories_list, cart_count=len(cart), error=None)
 
 @app.route('/about-us')
 def about_us_page():
@@ -1726,6 +1728,22 @@ def update_about_us():
     global about_us_content
     text = request.form.get('about_text', '').strip()
     if text: about_us_content = text
+    return redirect(url_for('admin'))
+
+@app.route('/add-category', methods=['POST'])
+def add_category():
+    global categories_list
+    new_cat = request.form.get('new_category', '').strip()
+    if new_cat and new_cat not in categories_list:
+        categories_list.append(new_cat)
+    return redirect(url_for('admin'))
+
+@app.route('/delete-category', methods=['POST'])
+def delete_category():
+    global categories_list
+    cat_name = request.form.get('category_name', '').strip()
+    if cat_name in categories_list and len(categories_list) > 1:
+        categories_list.remove(cat_name)
     return redirect(url_for('admin'))
 
 @app.route('/cart')
@@ -2036,7 +2054,7 @@ def add_product():
     global product_id_counter
     if site_controls['block_posting']: return redirect(url_for('index'))
     title = request.form.get('title')
-    category = request.form.get('category', site_config['texts']['cat_1_name']).strip()
+    category = request.form.get('category', categories_list[0] if categories_list else "عام").strip()
     condition = request.form.get('condition', '').strip()
     raw_price = request.form.get('price', '')
     raw_old = request.form.get('old_price', '')
@@ -2057,7 +2075,7 @@ def add_product():
 def admin_add_product():
     global product_id_counter
     title = request.form.get('title')
-    category = request.form.get('category', site_config['texts']['cat_1_name']).strip()
+    category = request.form.get('category', categories_list[0] if categories_list else "عام").strip()
     condition = request.form.get('condition', '').strip()
     raw_price = request.form.get('price', '')
     raw_old = request.form.get('old_price', '')
@@ -2130,8 +2148,7 @@ def update_texts():
     for key in site_config['texts']:
         form_txt = request.form.get(f'txt_{key}')
         if form_txt: site_config['texts'][key] = form_txt
-        if not key.startswith('cat_'):
-            text_visibility[key] = True if request.form.get(f'vis_{key}') == 'on' else False
+        text_visibility[key] = True if request.form.get(f'vis_{key}') == 'on' else False
     return redirect(url_for('admin'))
 
 @app.route('/update-config', methods=['POST'])
@@ -2172,7 +2189,7 @@ def admin():
     if request.method == 'POST':
         if 'password' in request.form:
             if is_locked:
-                return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=False, error=True, is_locked=True, remaining_seconds=remaining_seconds, raw_template=current_html_template, color_names_ar=color_names_ar)
+                return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, cats=categories_list, stats=site_stats, authorized=False, error=True, is_locked=True, remaining_seconds=remaining_seconds, raw_template=current_html_template, color_names_ar=color_names_ar)
             if request.form.get('password') == ADMIN_PASSWORD:
                 session['admin_logged'] = True
                 login_attempts = 0
@@ -2184,10 +2201,10 @@ def admin():
                     is_locked = True
                     remaining_seconds = 900
                     login_attempts = 0
-                return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=False, error=error, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
+                return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, cats=categories_list, stats=site_stats, authorized=False, error=error, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
                 
     authorized = session.get('admin_logged', False)
-    return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=authorized, error=False, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
+    return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, cats=categories_list, stats=site_stats, authorized=authorized, error=False, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
