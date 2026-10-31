@@ -12,6 +12,12 @@ import time
 app = Flask(__name__)
 app.secret_key = 'samemomomo_secret_key'
 
+# جعل عمر الجلسة 24 ساعة (يوم كامل)
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+    app.permanent_session_lifetime = timedelta(days=1)
+
 products = []
 gifts = []
 auctions = []
