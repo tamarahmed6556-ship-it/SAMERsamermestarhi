@@ -671,7 +671,7 @@ default_html_template = """
                 {% for g in gifts %}
                     <div class="product-card gift-item {% if g.is_sold %}sold-card{% endif %}" data-title="{{ g.title }}" data-price="{{ g.numeric_price }}" data-id="{{ g.id }}" data-is-gift="true" style="display: none;">
                         {% if g.is_sold %}<div class="sold-badge">تم البيع</div>{% endif %}
-                        <div class="discount-badge-card" style="background: #ec4899;">هدية 🎁</div>
+                        {% if g.discount_percent %}<div class="discount-badge-card" style="background: #ec4899;">خصم {{ g.discount_percent }}%</div>{% endif %}
                         <div class="product-images">{% for img in g.images %}<img src="{{ img }}" alt="صورة الهدية">{% endfor %}</div>
                         <div class="product-info">
                             <div class="product-title" title="{{ g.title }}">{{ g.title }}</div>
@@ -1112,6 +1112,7 @@ admin_template = """
         .delete-btn { background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
         .sold-btn { background: #d97706; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
         .unsold-btn { background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
+        .discount-btn { background: #ec4899; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; width: auto; margin: 0; }
         .back-link { display: block; text-align: center; margin-top: 20px; color: #25d366; text-decoration: none; font-size: 14px; font-weight: bold; }
         .section-box { border-top: 1px solid #222; margin-top: 25px; padding-top: 20px; }
         .row-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #000; padding: 6px 10px; border-radius: 6px; border: 1px solid #222; }
@@ -1306,6 +1307,7 @@ admin_template = """
                     <label>اسم الهدية:</label><input type="text" name="title" required>
                     <label>السعر الحالي / بعد الخصم:</label><input type="text" name="price" placeholder="مثال: 10" required>
                     <label>السعر القديم قبل الخصم (اختياري):</label><input type="text" name="old_price" placeholder="مثال: 15">
+                    <label>الكمية المتوفرة:</label><input type="text" name="quantity" value="1" placeholder="مثال: 1">
                     <label>وصف الهدية:</label><textarea name="description" rows="3"></textarea>
                     <label>صور الهدية 📸:</label><input type="file" name="images" multiple accept="image/*" style="color: #fff; margin-bottom: 10px;">
                     <button type="submit" style="background: #ec4899;">نشر الهدية 🎁</button>
@@ -1314,12 +1316,18 @@ admin_template = """
                     <h4 style="color: #ec4899; font-size: 14px; margin-bottom: 10px;">هدايا القسم الحاليّة:</h4>
                     {% if gifts|length == 0 %}<p style="color: #777; font-size: 12px; text-align: center;">لا توجد هدايا معروضة حالياً.</p>{% endif %}
                     {% for g in gifts %}
-                        <div class="product-row">
-                            <span><b>{{ g.title }}</b> ({{ g.price }})</span>
-                            <div class="product-actions">
-                                <form action="/toggle-sold-gift/{{ g.id }}" method="POST" style="margin:0;"><button type="submit" class="{% if g.is_sold %}unsold-btn{% else %}sold-btn{% endif %}">{% if g.is_sold %}إلغاء البيع{% else %}تم البيع{% endif %}</button></form>
-                                <form action="/delete-gift/{{ g.id }}" method="POST" style="margin:0;"><button type="submit" class="delete-btn">حذف</button></form>
+                        <div class="product-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                <span><b>{{ g.title }}</b> ({{ g.price }})</span>
+                                <div class="product-actions">
+                                    <form action="/toggle-sold-gift/{{ g.id }}" method="POST" style="margin:0;"><button type="submit" class="{% if g.is_sold %}unsold-btn{% else %}sold-btn{% endif %}">{% if g.is_sold %}إلغاء البيع{% else %}تم البيع{% endif %}</button></form>
+                                    <form action="/delete-gift/{{ g.id }}" method="POST" style="margin:0;"><button type="submit" class="delete-btn">حذف</button></form>
+                                </div>
                             </div>
+                            <form action="/update-gift-discount/{{ g.id }}" method="POST" style="display: flex; gap: 6px; width: 100%; margin: 0; align-items: center;">
+                                <input type="text" name="old_price" placeholder="السعر القديم (اختياري)" value="{{ g.old_price or '' }}" style="margin:0; font-size:11px; padding:6px;">
+                                <button type="submit" class="discount-btn" style="margin:0; width: auto; padding: 6px 12px;">تحديث الخصم</button>
+                            </form>
                         </div>
                     {% endfor %}
                 </div>
@@ -1403,12 +1411,18 @@ admin_template = """
             <div class="collapsible-header" onclick="toggleSection('sec_products')"><span>📦 قائمة المنتجات الحالية</span><span id="icon-sec_products">▼</span></div>
             <div id="sec_products" class="collapsible-content">
                 {% for p in products %}
-                    <div class="product-row">
-                        <span><b>{{ p.title }}</b> ({{ p.price }})</span>
-                        <div class="product-actions">
-                            <form action="/toggle-sold/{{ p.id }}" method="POST" style="margin:0;"><button type="submit" class="{% if p.is_sold %}unsold-btn{% else %}sold-btn{% endif %}">{% if p.is_sold %}إلغاء البيع{% else %}تم البيع{% endif %}</button></form>
-                            <form action="/delete/{{ p.id }}" method="POST" style="margin:0;"><button type="submit" class="delete-btn">حذف</button></form>
+                    <div class="product-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                            <span><b>{{ p.title }}</b> ({{ p.price }})</span>
+                            <div class="product-actions">
+                                <form action="/toggle-sold/{{ p.id }}" method="POST" style="margin:0;"><button type="submit" class="{% if p.is_sold %}unsold-btn{% else %}sold-btn{% endif %}">{% if p.is_sold %}إلغاء البيع{% else %}تم البيع{% endif %}</button></form>
+                                <form action="/delete/{{ p.id }}" method="POST" style="margin:0;"><button type="submit" class="delete-btn">حذف</button></form>
+                            </div>
                         </div>
+                        <form action="/update-product-discount/{{ p.id }}" method="POST" style="display: flex; gap: 6px; width: 100%; margin: 0; align-items: center;">
+                            <input type="text" name="old_price" placeholder="السعر القديم (اختياري لتفعيل الخصم)" value="{{ p.old_price or '' }}" style="margin:0; font-size:11px; padding:6px;">
+                            <button type="submit" class="discount-btn" style="margin:0; width: auto; padding: 6px 12px;">تحديث الخصم</button>
+                        </form>
                     </div>
                 {% endfor %}
             </div>
@@ -1636,13 +1650,14 @@ def admin_add_gift():
     raw_old = request.form.get('old_price', '')
     price = format_price(raw_price)
     old_price, discount_percent = calculate_discount(raw_price, raw_old)
+    quantity = request.form.get('quantity', '1').strip()
     description = request.form.get('description', '').strip()
     images_list = [process_and_compress_image(f) for f in request.files.getlist('images') if f and f.filename != '']
     numeric_price = 0.0
     try: numeric_price = float(re.sub(r'[^0-9.]', '', str(raw_price)))
     except Exception: pass
     if title:
-        gifts.insert(0, {"id": 10000 + gift_id_counter, "title": title, "price": price, "old_price": old_price, "discount_percent": discount_percent, "numeric_price": numeric_price, "description": description, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
+        gifts.insert(0, {"id": 10000 + gift_id_counter, "title": title, "price": price, "old_price": old_price, "discount_percent": discount_percent, "numeric_price": numeric_price, "quantity": quantity, "description": description, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
         gift_id_counter += 1
     return redirect(url_for('admin'))
 
@@ -1657,6 +1672,28 @@ def toggle_sold_gift(g_id):
     global gifts
     for g in gifts:
         if g['id'] == g_id: g['is_sold'] = not g.get('is_sold', False)
+    return redirect(url_for('admin'))
+
+@app.route('/update-gift-discount/<int:g_id>', methods=['POST'])
+def update_gift_discount(g_id):
+    global gifts
+    raw_old = request.form.get('old_price', '').strip()
+    for g in gifts:
+        if g['id'] == g_id:
+            old_price, discount_percent = calculate_discount(re.sub(r'[^0-9.]', '', str(g['price'])), raw_old)
+            g['old_price'] = old_price
+            g['discount_percent'] = discount_percent
+    return redirect(url_for('admin'))
+
+@app.route('/update-product-discount/<int:p_id>', methods=['POST'])
+def update_product_discount(p_id):
+    global products
+    raw_old = request.form.get('old_price', '').strip()
+    for p in products:
+        if p['id'] == p_id:
+            old_price, discount_percent = calculate_discount(re.sub(r'[^0-9.]', '', str(p['price'])), raw_old)
+            p['old_price'] = old_price
+            p['discount_percent'] = discount_percent
     return redirect(url_for('admin'))
 
 @app.route('/admin-add-auction', methods=['POST'])
