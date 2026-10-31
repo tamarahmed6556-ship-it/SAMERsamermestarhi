@@ -17,48 +17,67 @@ def make_session_permanent():
     session.permanent = True
     app.permanent_session_lifetime = timedelta(days=1)
 
-products = []
-gifts = []
-auctions = []
-notes = []
-reviews = [
+# ملفات الحفظ الدائم (Persistent Storage Files)
+PRODUCTS_FILE = "persistent_products.json"
+GIFTS_FILE = "persistent_gifts.json"
+SETTINGS_FILE = "persistent_settings.json"
+CONTROLS_FILE = "persistent_controls.json"
+TEXTS_FILE = "persistent_texts.json"
+VIS_FILE = "persistent_vis.json"
+CATS_FILE = "persistent_cats.json"
+AUCTIONS_FILE = "persistent_auctions.json"
+REVIEWS_FILE = "persistent_reviews.json"
+NOTES_FILE = "persistent_notes.json"
+STATS_FILE = "persistent_stats.json"
+CODE_FILE = "persistent_code.json"
+
+def load_json_file(filename, default_val):
+    try:
+        if os.path.exists(filename):
+            with open(filename, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return default_val
+
+def save_json_file(filename, data):
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+# تحميل البيانات المحفوظة دائمياً
+products = load_json_file(PRODUCTS_FILE, [])
+gifts = load_json_file(GIFTS_FILE, [])
+auctions = load_json_file(AUCTIONS_FILE, [])
+notes = load_json_file(NOTES_FILE, [])
+reviews = load_json_file(REVIEWS_FILE, [
     {"id": 1, "name": "محمد أحمد", "rating": 5, "comment": "متجر فخم جداً والقطع أصلية وتوصيل سريع، شكراً لكم!"},
     {"id": 2, "name": "عمر خالد", "rating": 5, "comment": "تجربة شراء ممتازة والتعامل راقي جداً."}
-]
+])
 
-categories_list = ["ديكور منزلي", "شمعدانات ومزهريات", "كتب ومقتنيات"]
+categories_list = load_json_file(CATS_FILE, ["ديكور منزلي", "شمعدانات ومزهريات", "كتب ومقتنيات"])
 
-product_id_counter = 1
-gift_id_counter = 1
-auction_id_counter = 1
-note_id_counter = 1
-review_id_counter = 3
+site_stats = load_json_file(STATS_FILE, {"total_visits": 0})
+
+product_id_counter = len(products) + len(gifts) + 1
+gift_id_counter = len(gifts) + 1
+auction_id_counter = len(auctions) + 1
+note_id_counter = len(notes) + 1
+review_id_counter = len(reviews) + 1
 ADMIN_PASSWORD = "samemomomo**1"
 
 login_attempts = 0
 lockout_until = 0
 
-site_stats = {
-    "total_visits": 0
-}
-
 CART_FILE = "persistent_cart.json"
 
 def load_persistent_cart():
-    try:
-        if os.path.exists(CART_FILE):
-            with open(CART_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    except Exception:
-        pass
-    return {}
+    return load_json_file(CART_FILE, {})
 
 def save_persistent_cart(cart_data):
-    try:
-        with open(CART_FILE, 'w', encoding='utf-8') as f:
-            json.dump(cart_data, f, ensure_ascii=False)
-    except Exception:
-        pass
+    save_json_file(CART_FILE, cart_data)
 
 def get_user_cart_id():
     if 'user_cart_uuid' not in session:
@@ -69,8 +88,7 @@ def get_user_cart_id():
 def get_cart():
     all_carts = load_persistent_cart()
     uid = get_user_cart_id()
-    cart = all_carts.get(uid, [])
-    return cart
+    return all_carts.get(uid, [])
 
 def update_cart_in_storage(cart):
     all_carts = load_persistent_cart()
@@ -78,9 +96,9 @@ def update_cart_in_storage(cart):
     all_carts[uid] = cart
     save_persistent_cart(all_carts)
 
-about_us_content = "مرحباً بكم في متجر عتيق، مساحتنا الخاصة لحفظ عبق الماضي وإحياء حكايات القطع الفريدة والأنتيكات الأصلية. كل قطعة هنا تحمل تاريخاً وروحاً تستحق أن تروى."
+about_us_content = load_json_file("persistent_about.json", "مرحباً بكم في متجر عتيق، مساحتنا الخاصة لحفظ عبق الماضي وإحياء حكايات القطع الفريدة والأنتيكات الأصلية. كل قطعة هنا تحمل تاريخاً وروحاً تستحق أن تروى.")
 
-site_controls = {
+default_site_controls = {
     "block_posting": False,  
     "enable_search": True,
     "enable_socials": True,       
@@ -115,138 +133,79 @@ site_controls = {
     ],
     "copyright_text": "جميع الحقوق محفوظة © عتيق 2026. تم تصميم وتطوير المنصة بعناية فائقة."
 }
+site_controls = load_json_file(CONTROLS_FILE, default_site_controls)
 
-text_visibility = {
-    "settings_btn_text": True,
-    "subtitle": True,
-    "heading_products": True,
-    "heading_gifts": True,
-    "no_products": True,
-    "no_gifts": True,
-    "heading_auctions": True,
-    "toggle_btn_open": True,
-    "toggle_btn_close": True,
-    "form_main_title": True,
-    "label_title": True,
-    "input_title_placeholder": True,
-    "label_price": True,
-    "input_price_placeholder": True,
-    "label_old_price": True,
-    "label_quantity": True,
-    "input_quantity_placeholder": True,
-    "label_description": True,
-    "input_description_placeholder": True,
-    "upload_text": True,
-    "submit_btn": True,
-    "back_home": True,
-    "view_details": True,
-    "search_placeholder": True,
-    "contact_word": True,
-    "bid_name_label": True,
-    "bid_phone_label": True,
-    "bid_amount_label": True,
-    "bid_submit_btn": True,
-    "sort_newest": True,
-    "sort_price_low": True,
-    "sort_price_high": True,
-    "filter_gifts": True
+default_text_visibility = {
+    "settings_btn_text": True, "subtitle": True, "heading_products": True, "heading_gifts": True,
+    "no_products": True, "no_gifts": True, "heading_auctions": True, "toggle_btn_open": True,
+    "toggle_btn_close": True, "form_main_title": True, "label_title": True, "input_title_placeholder": True,
+    "label_price": True, "input_price_placeholder": True, "label_old_price": True, "label_quantity": True,
+    "input_quantity_placeholder": True, "label_description": True, "input_description_placeholder": True,
+    "upload_text": True, "submit_btn": True, "back_home": True, "view_details": True,
+    "search_placeholder": True, "contact_word": True, "bid_name_label": True, "bid_phone_label": True,
+    "bid_amount_label": True, "bid_submit_btn": True, "sort_newest": True, "sort_price_low": True,
+    "sort_price_high": True, "filter_gifts": True
 }
+text_visibility = load_json_file(VIS_FILE, default_text_visibility)
 
-site_config = {
+default_site_config = {
     "title": "عتيق | Atiq",
     "subtitle": "لكل قطعة حكاية",
     "bg_image": "",
     "texts": {
-        "settings_btn_text": "⚙️ الإعدادات ▼",
-        "subtitle": "لكل قطعة حكاية",
-        "heading_products": "المنتجات المعروضه",
-        "heading_gifts": "🎁 قسم الهدايا المميزة",
-        "no_products": "لا توجد منتجات معروضة حالياً.",
-        "no_gifts": "لا توجد هدايا معروضة حالياً.",
-        "heading_auctions": "🔥 المزادات الحالية المشتعلة",
-        "toggle_btn_open": "➕ إضافة قطعة جديدة",
-        "toggle_btn_close": "✖ إغلاق القائمة",
-        "form_main_title": "أضف قطعة جديدة للمتجر",
-        "label_title": "اسم المنتج أو القطعة",
-        "input_title_placeholder": "أدخل اسم القطعة",
-        "label_price": "السعر الحالي / السعر بعد الخصم",
-        "input_price_placeholder": "أدخل الرقم فقط (مثال: 13)",
-        "label_old_price": "السعر القديم قبل الخصم (اختياري)",
-        "label_quantity": "الكمية المتوفرة",
-        "input_quantity_placeholder": "أدخل الكمية (مثال: 1)",
-        "label_description": "نبذة أو قصة عن المنتج",
-        "input_description_placeholder": "اكتب قصة هذه القطعة أو نبذة عنها...",
-        "upload_text": "اضغط هنا لاختيار صور المنتج 📸",
-        "submit_btn": "نشر المنتج",
-        "back_home": "← العودة إلى المتجر الرئيسي",
-        "view_details": "عرض التفاصيل",
-        "search_placeholder": "🔍 ابحث عن عنصر أو منتج...",
-        "contact_word": "شراء",
-        "bid_name_label": "اسمك الكريم:",
-        "bid_phone_label": "رقم هاتفك للتواصل:",
-        "bid_amount_label": "قيمة السعر المقترح للمزايدة:",
-        "bid_submit_btn": "تثبيت المزايدة 🚀",
-        "sort_newest": "🕒 الأحدث",
-        "sort_price_low": "💵 السعر: من الأقل للأعلى",
-        "sort_price_high": "📈 السعر: من الأعلى للأقل",
-        "filter_gifts": "🎁 عرض الهدايا فقط"
+        "settings_btn_text": "⚙️ الإعدادات ▼", "subtitle": "لكل قطعة حكاية", "heading_products": "المنتجات المعروضه",
+        "heading_gifts": "🎁 قسم الهدايا المميزة", "no_products": "لا توجد منتجات معروضة حالياً.", "no_gifts": "لا توجد هدايا معروضة حالياً.",
+        "heading_auctions": "🔥 المزادات الحالية المشتعلة", "toggle_btn_open": "➕ إضافة قطعة جديدة", "toggle_btn_close": "✖ إغلاق القائمة",
+        "form_main_title": "أضف قطعة جديدة للمتجر", "label_title": "اسم المنتج أو القطعة", "input_title_placeholder": "أدخل اسم القطعة",
+        "label_price": "السعر الحالي / السعر بعد الخصم", "input_price_placeholder": "أدخل الرقم فقط (مثال: 13)",
+        "label_old_price": "السعر القديم قبل الخصم (اختياري)", "label_quantity": "الكمية المتوفرة",
+        "input_quantity_placeholder": "أدخل الكمية (مثال: 1)", "label_description": "نبذة أو قصة عن المنتج",
+        "input_description_placeholder": "اكتب قصة هذه القطعة أو نبذة عنها...", "upload_text": "اضغط هنا لاختيار صور المنتج 📸",
+        "submit_btn": "نشر المنتج", "back_home": "← العودة إلى المتجر الرئيسي", "view_details": "عرض التفاصيل",
+        "search_placeholder": "🔍 ابحث عن عنصر أو منتج...", "contact_word": "شراء", "bid_name_label": "اسمك الكريم:",
+        "bid_phone_label": "رقم هاتفك للتواصل:", "bid_amount_label": "قيمة السعر المقترح للمزايدة:",
+        "bid_submit_btn": "تثبيت المزايدة 🚀", "sort_newest": "🕒 الأحدث", "sort_price_low": "💵 السعر: من الأقل للأعلى",
+        "sort_price_high": "📈 السعر: من الأعلى للأقل", "filter_gifts": "🎁 عرض الهدايا فقط"
     },
     "colors": {
-        "bg_color": "#000000",             
-        "title": "#ff5252",                
-        "subtitle": "#aaaaaa",             
-        "logo_bg": "#000000",              
-        "logo_border": "#ef4444",          
-        "products_heading": "#ffffff",     
-        "gifts_heading": "#ec4899",
-        "no_products": "#777777",          
-        "auctions_heading": "#fbbf24",     
-        "product_bg": "#111111",           
-        "product_title": "#ffffff",        
-        "product_price": "#25d366",        
-        "whatsapp_btn": "#000000",         
-        "share_btn_color": "#000000",      
-        "cart_btn": "#000000",             
-        "toggle_btn": "#25d366",           
-        "form_main_title": "#ffffff",      
-        "label_title": "#cccccc",          
-        "upload_text": "#ffffff",          
-        "submit_btn": "#25d366",
-        "glow_color": "#25d366",
-        "search_bar_bg": "#111111",
-        "search_bar_text": "#ffffff",
-        "filter_btn_bg": "#111111",
-        "filter_btn_text": "#ffffff"
+        "bg_color": "#000000", "title": "#ff5252", "subtitle": "#aaaaaa", "logo_bg": "#000000",
+        "logo_border": "#ef4444", "products_heading": "#ffffff", "gifts_heading": "#ec4899",
+        "no_products": "#777777", "auctions_heading": "#fbbf24", "product_bg": "#111111",
+        "product_title": "#ffffff", "product_price": "#25d366", "whatsapp_btn": "#000000",
+        "share_btn_color": "#000000", "cart_btn": "#000000", "toggle_btn": "#25d366",
+        "form_main_title": "#ffffff", "label_title": "#cccccc", "upload_text": "#ffffff",
+        "submit_btn": "#25d366", "glow_color": "#25d366", "search_bar_bg": "#111111",
+        "search_bar_text": "#ffffff", "filter_btn_bg": "#111111", "filter_btn_text": "#ffffff"
     }
 }
+site_config = load_json_file(SETTINGS_FILE, default_site_config)
 
 color_names_ar = {
-    "bg_color": "لون خلفية الموقع العامة",
-    "title": "لون عنوان الموقع الرئيسي",
-    "logo_bg": "لون خلفية مربع الشعار",
-    "logo_border": "لون إطار وتوهج مربع الشعار",
-    "subtitle": "لون وصف/شعار الموقع الفرعي",
-    "products_heading": "لون عنوان قسم المنتجات المعروضة",
-    "gifts_heading": "لون عنوان قسم الهدايا 🎁",
-    "no_products": "لون جملة عدم وجود منتجات",
-    "auctions_heading": "لون عنوان قسم المزادات",
-    "product_bg": "لون خلفية بطاقة/مربع المنتج",
-    "product_title": "لون عنوان المنتج",
-    "product_price": "لون سعر المنتج والكمية",
-    "whatsapp_btn": "لون خلفية زر عرض التفاصيل",
-    "share_btn_color": "لون زر المشاركة",
-    "cart_btn": "لون خلفية زر أضف إلى السلة",
-    "toggle_btn": "لون زر فتح وإغلاق قائمة الإضافة",
-    "form_main_title": "لون عنوان نموذج الإضافة",
-    "label_title": "لون عناوين الحقول (Labels)",
-    "upload_text": "لون نص اختيار الصور",
-    "submit_btn": "لون زر نشر المنتج",
-    "glow_color": "لون إضاءة وتوهج سلة المشتريات ✨",
-    "search_bar_bg": "لون خلفية شريط البحث",
-    "search_bar_text": "لون نص شريط البحث",
-    "filter_btn_bg": "لون خلفية زر الفلترة ⌃",
-    "filter_btn_text": "لون أيقونة ونصوص زر الفلترة"
+    "bg_color": "لون خلفية الموقع العامة", "title": "لون عنوان الموقع الرئيسي", "logo_bg": "لون خلفية مربع الشعار",
+    "logo_border": "لون إطار وتوهج مربع الشعار", "subtitle": "لون وصف/شعار الموقع الفرعي",
+    "products_heading": "لون عنوان قسم المنتجات المعروضة", "gifts_heading": "لون عنوان قسم الهدايا 🎁",
+    "no_products": "لون جملة عدم وجود منتجات", "auctions_heading": "لون عنوان قسم المزادات",
+    "product_bg": "لون خلفية بطاقة/مربع المنتج", "product_title": "لون عنوان المنتج",
+    "product_price": "لون سعر المنتج والكمية", "whatsapp_btn": "لون خلفية زر عرض التفاصيل",
+    "share_btn_color": "لون زر المشاركة", "cart_btn": "لون خلفية زر أضف إلى السلة",
+    "toggle_btn": "لون زر فتح وإغلاق قائمة الإضافة", "form_main_title": "لون عنوان نموذج الإضافة",
+    "label_title": "لون عناوين الحقول (Labels)", "upload_text": "لون نص اختيار الصور",
+    "submit_btn": "لون زر نشر المنتج", "glow_color": "لون إضاءة وتوهج سلة المشتريات ✨",
+    "search_bar_bg": "لون خلفية شريط البحث", "search_bar_text": "لون نص شريط البحث",
+    "filter_btn_bg": "لون خلفية زر الفلترة ⌃", "filter_btn_text": "لون أيقونة ونصوص زر الفلترة"
 }
+
+def save_all_states():
+    save_json_file(PRODUCTS_FILE, products)
+    save_json_file(GIFTS_FILE, gifts)
+    save_json_file(SETTINGS_FILE, site_config)
+    save_json_file(CONTROLS_FILE, site_controls)
+    save_json_file(VIS_FILE, text_visibility)
+    save_json_file(CATS_FILE, categories_list)
+    save_json_file(AUCTIONS_FILE, auctions)
+    save_json_file(REVIEWS_FILE, reviews)
+    save_json_file(NOTES_FILE, notes)
+    save_json_file(STATS_FILE, site_stats)
 
 def format_price(raw_price):
     if not raw_price:
@@ -260,6 +219,7 @@ def format_price(raw_price):
         return f"{numbers_only} {curr}"
     return clean_val
 
+# قوالب HTML (نفس تصميمك الأنيق والمحدث)
 product_detail_template = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -1679,7 +1639,7 @@ admin_template = """
 </html>
 """
 
-current_html_template = default_html_template
+current_html_template = load_json_file(CODE_FILE, default_html_template)
 
 def process_and_compress_image(image_file):
     try:
@@ -1711,6 +1671,7 @@ def calculate_discount(price_str, old_price_str):
 def index():
     global current_html_template, site_stats
     site_stats['total_visits'] += 1
+    save_json_file(STATS_FILE, site_stats)
     cart = get_cart()
     per_page = 30
     try: page = int(request.args.get('page', 1))
@@ -1732,7 +1693,9 @@ def about_us_page():
 def update_about_us():
     global about_us_content
     text = request.form.get('about_text', '').strip()
-    if text: about_us_content = text
+    if text: 
+        about_us_content = text
+        save_json_file("persistent_about.json", about_us_content)
     return redirect(url_for('admin'))
 
 @app.route('/add-category', methods=['POST'])
@@ -1741,6 +1704,7 @@ def add_category():
     new_cat = request.form.get('new_category', '').strip()
     if new_cat and new_cat not in categories_list:
         categories_list.append(new_cat)
+        save_json_file(CATS_FILE, categories_list)
     return redirect(url_for('admin'))
 
 @app.route('/delete-category', methods=['POST'])
@@ -1749,6 +1713,7 @@ def delete_category():
     cat_name = request.form.get('category_name', '').strip()
     if cat_name in categories_list and len(categories_list) > 1:
         categories_list.remove(cat_name)
+        save_json_file(CATS_FILE, categories_list)
     return redirect(url_for('admin'))
 
 @app.route('/cart')
@@ -1827,6 +1792,7 @@ def place_bid(a_id):
         auction['bids'] = sorted(auction['bids'], key=lambda x: x['raw_amount'], reverse=True)
         top_bid = auction['bids'][0]
         auction['current_price'] = f"{top_bid['amount']} (بواسطة: {top_bid['name']})"
+        save_json_file(AUCTIONS_FILE, auctions)
         
         msg = f"مرحباً سامر، لدي مزايدة جديدة\nعلى القطعة: {auction['title']}\nقيمة المزايدة: {formatted_bid_amount}\nاسم المزايد: {bidder_name}\nرقم الهاتف: {bidder_phone}"
         encoded_msg = urllib.parse.quote(msg)
@@ -1860,14 +1826,18 @@ def buy_product(p_id):
 def update_admin_whatsapp():
     global site_controls
     whatsapp = request.form.get('admin_whatsapp', '').strip()
-    if whatsapp: site_controls['admin_whatsapp'] = whatsapp
+    if whatsapp: 
+        site_controls['admin_whatsapp'] = whatsapp
+        save_json_file(CONTROLS_FILE, site_controls)
     return redirect(url_for('admin'))
 
 @app.route('/update-currency', methods=['POST'])
 def update_currency():
     global site_controls
     curr = request.form.get('currency_symbol', '').strip()
-    if curr: site_controls['currency_symbol'] = curr
+    if curr: 
+        site_controls['currency_symbol'] = curr
+        save_json_file(CONTROLS_FILE, site_controls)
     return redirect(url_for('admin'))
 
 @app.route('/update-cod-settings', methods=['POST'])
@@ -1876,6 +1846,7 @@ def update_cod_settings():
     site_controls['enable_cod_note'] = True if request.form.get('enable_cod_note') == 'on' else False
     text = request.form.get('cod_note_text', '').strip()
     if text: site_controls['cod_note_text'] = text
+    save_json_file(CONTROLS_FILE, site_controls)
     return redirect(url_for('admin'))
 
 @app.route('/update-marquee', methods=['POST'])
@@ -1884,6 +1855,7 @@ def update_marquee():
     site_controls['enable_marquee'] = True if request.form.get('enable_marquee') == 'on' else False
     text = request.form.get('marquee_text', '').strip()
     if text: site_controls['marquee_text'] = text
+    save_json_file(CONTROLS_FILE, site_controls)
     return redirect(url_for('admin'))
 
 @app.route('/update-password', methods=['POST'])
@@ -1911,12 +1883,14 @@ def admin_add_gift():
     if title:
         gifts.insert(0, {"id": 10000 + gift_id_counter, "title": title, "price": price, "old_price": old_price, "discount_percent": discount_percent, "numeric_price": numeric_price, "quantity": quantity, "description": description, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
         gift_id_counter += 1
+        save_json_file(GIFTS_FILE, gifts)
     return redirect(url_for('admin'))
 
 @app.route('/delete-gift/<int:g_id>', methods=['POST'])
 def delete_gift(g_id):
     global gifts
     gifts = [g for g in gifts if g['id'] != g_id]
+    save_json_file(GIFTS_FILE, gifts)
     return redirect(url_for('admin'))
 
 @app.route('/toggle-sold-gift/<int:g_id>', methods=['POST'])
@@ -1924,6 +1898,7 @@ def toggle_sold_gift(g_id):
     global gifts
     for g in gifts:
         if g['id'] == g_id: g['is_sold'] = not g.get('is_sold', False)
+    save_json_file(GIFTS_FILE, gifts)
     return redirect(url_for('admin'))
 
 @app.route('/update-gift-discount/<int:g_id>', methods=['POST'])
@@ -1940,6 +1915,7 @@ def update_gift_discount(g_id):
             old_price, discount_percent = calculate_discount(raw_new, raw_old)
             g['old_price'] = old_price
             g['discount_percent'] = discount_percent
+    save_json_file(GIFTS_FILE, gifts)
     return redirect(url_for('admin'))
 
 @app.route('/update-product-details/<int:p_id>', methods=['POST'])
@@ -1961,6 +1937,7 @@ def update_product_details(p_id):
             p['raw_old_price'] = raw_old
             if category: p['category'] = category
             p['condition'] = condition
+    save_json_file(PRODUCTS_FILE, products)
     return redirect(url_for('admin'))
 
 @app.route('/toggle-featured/<int:p_id>', methods=['POST'])
@@ -1968,6 +1945,7 @@ def toggle_featured(p_id):
     global products
     for p in products:
         if p['id'] == p_id: p['is_featured'] = not p.get('is_featured', False)
+    save_json_file(PRODUCTS_FILE, products)
     return redirect(url_for('admin'))
 
 @app.route('/admin-add-auction', methods=['POST'])
@@ -1990,12 +1968,14 @@ def admin_add_auction():
     if title and current_price:
         auctions.insert(0, {"id": auction_id_counter, "title": title, "description": description, "current_price": current_price, "min_bid": min_bid, "max_price": max_price, "end_time": end_time.isoformat(), "images": [img for img in images_list if img], "bids": []})
         auction_id_counter += 1
+        save_json_file(AUCTIONS_FILE, auctions)
     return redirect(url_for('admin'))
 
 @app.route('/delete-auction/<int:a_id>', methods=['POST'])
 def delete_auction(a_id):
     global auctions
     auctions = [a for a in auctions if a['id'] != a_id]
+    save_json_file(AUCTIONS_FILE, auctions)
     return redirect(url_for('admin'))
 
 @app.route('/reviews')
@@ -2010,6 +1990,8 @@ def product_detail(p_id):
     product = next((p for p in all_items if p['id'] == p_id), None)
     if not product: return redirect(url_for('index'))
     product['views'] = product.get('views', 0) + 1
+    save_json_file(PRODUCTS_FILE, products)
+    save_json_file(GIFTS_FILE, gifts)
     return render_template_string(product_detail_template, product=product, config=site_config, controls=site_controls, vis=text_visibility, error=None)
 
 @app.route('/copyright')
@@ -2021,7 +2003,9 @@ def copyright_page():
 def update_code():
     global current_html_template
     new_code = request.form.get('custom_html', '').strip()
-    if new_code: current_html_template = new_code
+    if new_code: 
+        current_html_template = new_code
+        save_json_file(CODE_FILE, current_html_template)
     return redirect(url_for('admin'))
 
 @app.route('/add-review', methods=['POST'])
@@ -2034,34 +2018,38 @@ def add_review():
     if name and comment:
         reviews.insert(0, {"id": review_id_counter, "name": name, "rating": rating, "comment": comment})
         review_id_counter += 1
+        save_json_file(REVIEWS_FILE, reviews)
     return redirect(url_for('reviews_page'))
 
 @app.route('/delete-review/<int:r_id>', methods=['POST'])
 def delete_review(r_id):
     global reviews
     reviews = [r for r in reviews if r['id'] != r_id]
+    save_json_file(REVIEWS_FILE, reviews)
     return redirect(url_for('admin'))
 
 @app.route('/add-note', methods=['POST'])
 def add_note():
-    global note_id_counter
+    global note_id_counter, notes
     title = request.form.get('note_title', '').strip()
     content = request.form.get('note_content', '').strip()
     images_list = [process_and_compress_image(f) for f in request.files.getlist('note_images') if f and f.filename != '']
     if title and content:
         notes.insert(0, {"id": note_id_counter, "title": title, "content": content, "images": [img for img in images_list if img]})
         note_id_counter += 1
+        save_json_file(NOTES_FILE, notes)
     return redirect(url_for('admin'))
 
 @app.route('/delete-note/<int:n_id>', methods=['POST'])
 def delete_note(n_id):
     global notes
     notes = [n for n in notes if n['id'] != n_id]
+    save_json_file(NOTES_FILE, notes)
     return redirect(url_for('admin'))
 
 @app.route('/add', methods=['POST'])
 def add_product():
-    global product_id_counter
+    global product_id_counter, products
     if site_controls['block_posting']: return redirect(url_for('index'))
     title = request.form.get('title')
     category = request.form.get('category', categories_list[0] if categories_list else "عام").strip()
@@ -2079,11 +2067,12 @@ def add_product():
     if title:
         products.insert(0, {"id": product_id_counter, "title": title, "category": category, "condition": condition, "price": price, "old_price": old_price, "discount_percent": discount_percent, "raw_old_price": raw_old, "numeric_price": numeric_price, "quantity": quantity, "description": description, "is_featured": False, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
         product_id_counter += 1
+        save_json_file(PRODUCTS_FILE, products)
     return redirect(url_for('index'))
 
 @app.route('/admin-add-product', methods=['POST'])
 def admin_add_product():
-    global product_id_counter
+    global product_id_counter, products
     title = request.form.get('title')
     category = request.form.get('category', categories_list[0] if categories_list else "عام").strip()
     condition = request.form.get('condition', '').strip()
@@ -2101,6 +2090,7 @@ def admin_add_product():
     if title:
         products.insert(0, {"id": product_id_counter, "title": title, "category": category, "condition": condition, "price": price, "old_price": old_price, "discount_percent": discount_percent, "raw_old_price": raw_old, "numeric_price": numeric_price, "quantity": quantity, "description": description, "is_featured": is_featured, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
         product_id_counter += 1
+        save_json_file(PRODUCTS_FILE, products)
     return redirect(url_for('admin'))
 
 @app.route('/update-logo', methods=['POST'])
@@ -2134,6 +2124,8 @@ def update_logo():
     if logo_file and logo_file.filename != '':
         comp_logo = process_and_compress_image(logo_file)
         if comp_logo: site_controls['logo_image'] = comp_logo
+    
+    save_json_file(CONTROLS_FILE, site_controls)
     return redirect(url_for('admin'))
 
 @app.route('/update-controls', methods=['POST'])
@@ -2150,6 +2142,7 @@ def update_controls():
     site_controls['enable_socials'] = True if request.form.get('enable_socials') == 'on' else False
     site_controls['enable_copyright'] = True if request.form.get('enable_copyright') == 'on' else False
     site_controls['enable_reviews_page'] = True if request.form.get('enable_reviews_page') == 'on' else False
+    save_json_file(CONTROLS_FILE, site_controls)
     return redirect(url_for('admin'))
 
 @app.route('/update-texts', methods=['POST'])
@@ -2159,6 +2152,8 @@ def update_texts():
         form_txt = request.form.get(f'txt_{key}')
         if form_txt: site_config['texts'][key] = form_txt
         text_visibility[key] = True if request.form.get(f'vis_{key}') == 'on' else False
+    save_json_file(SETTINGS_FILE, site_config)
+    save_json_file(VIS_FILE, text_visibility)
     return redirect(url_for('admin'))
 
 @app.route('/update-config', methods=['POST'])
@@ -2174,12 +2169,15 @@ def update_config():
     if bg_file and bg_file.filename != '':
         comp_bg = process_and_compress_image(bg_file)
         if comp_bg: site_config['bg_image'] = comp_bg
+    save_json_file(SETTINGS_FILE, site_config)
+    save_json_file(CONTROLS_FILE, site_controls)
     return redirect(url_for('admin'))
 
 @app.route('/delete/<int:p_id>', methods=['POST'])
 def delete_product(p_id):
     global products
     products = [p for p in products if p['id'] != p_id]
+    save_json_file(PRODUCTS_FILE, products)
     return redirect(url_for('admin'))
 
 @app.route('/toggle-sold/<int:p_id>', methods=['POST'])
@@ -2187,6 +2185,7 @@ def toggle_sold(p_id):
     global products
     for p in products:
         if p['id'] == p_id: p['is_sold'] = not p.get('is_sold', False)
+    save_json_file(PRODUCTS_FILE, products)
     return redirect(url_for('admin'))
 
 @app.route('/admin', methods=['GET', 'POST'])
