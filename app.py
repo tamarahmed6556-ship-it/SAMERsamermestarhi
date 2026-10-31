@@ -141,7 +141,10 @@ text_visibility = {
     "sort_newest": True,
     "sort_price_low": True,
     "sort_price_high": True,
-    "filter_gifts": True
+    "filter_gifts": True,
+    "cat_1_name": True,
+    "cat_2_name": True,
+    "cat_3_name": True
 }
 
 site_config = {
@@ -181,7 +184,10 @@ site_config = {
         "sort_newest": "🕒 الأحدث",
         "sort_price_low": "💵 السعر: من الأقل للأعلى",
         "sort_price_high": "📈 السعر: من الأعلى للأقل",
-        "filter_gifts": "🎁 عرض الهدايا فقط"
+        "filter_gifts": "🎁 عرض الهدايا فقط",
+        "cat_1_name": "ديكور منزلي",
+        "cat_2_name": "شمعدانات ومزهريات",
+        "cat_3_name": "كتب ومقتنيات"
     },
     "colors": {
         "bg_color": "#000000",             
@@ -638,9 +644,9 @@ default_html_template = """
             <div id="filterMenu" class="filter-content">
                 <div onclick="selectSort('featured', '✨ قطع مميزة')" style="color: #fbbf24; font-weight: bold;">✨ قطع مميزة</div>
                 <div style="color: #888; font-size: 11px; padding: 4px 14px; background: #000; border-bottom: 1px solid #222;">-- تصنيفات المنتجات --</div>
-                <div onclick="selectSort('cat-ديكور منزلي', '🏠 ديكور منزلي')">🏠 ديكور منزلي</div>
-                <div onclick="selectSort('cat-شمعدانات ومزهريات', '🏺 شمعدانات ومزهريات')">🏺 شمعدانات ومزهريات</div>
-                <div onclick="selectSort('cat-كتب ومقتنيات', '📚 كتب ومقتنيات')">📚 كتب ومقتنيات</div>
+                <div onclick="selectSort('cat-{{ config.texts.cat_1_name }}', '🏠 {{ config.texts.cat_1_name }}')">🏠 {{ config.texts.cat_1_name }}</div>
+                <div onclick="selectSort('cat-{{ config.texts.cat_2_name }}', '🏺 {{ config.texts.cat_2_name }}')">🏺 {{ config.texts.cat_2_name }}</div>
+                <div onclick="selectSort('cat-{{ config.texts.cat_3_name }}', '📚 {{ config.texts.cat_3_name }}')">📚 {{ config.texts.cat_3_name }}</div>
                 <div style="border-top: 1px solid #333; margin-top: 2px;"></div>
                 {% if vis.sort_newest %}<div onclick="selectSort('newest', '{{ config.texts.sort_newest }}')">{{ config.texts.sort_newest }}</div>{% endif %}
                 {% if vis.sort_price_low %}<div onclick="selectSort('price-low', '{{ config.texts.sort_price_low }}')">{{ config.texts.sort_price_low }}</div>{% endif %}
@@ -772,9 +778,9 @@ default_html_template = """
             <div class="input-group">
                 <label style="color: {{ config.colors.label_title }};">تصنيف القطعة:</label>
                 <select name="category" style="background:#000; color:#fff; padding:10px; border-radius:8px; border:1px solid #333; width:100%; outline:none;" required>
-                    <option value="ديكور منزلي">🏠 ديكور منزلي</option>
-                    <option value="شمعدانات ومزهريات">🏺 شمعدانات ومزهريات</option>
-                    <option value="كتب ومقتنيات">📚 كتب ومقتنيات</option>
+                    <option value="{{ config.texts.cat_1_name }}">{{ config.texts.cat_1_name }}</option>
+                    <option value="{{ config.texts.cat_2_name }}">{{ config.texts.cat_2_name }}</option>
+                    <option value="{{ config.texts.cat_3_name }}">{{ config.texts.cat_3_name }}</option>
                 </select>
             </div>
             <div class="input-group">
@@ -1339,18 +1345,35 @@ admin_template = """
                     <button type="submit" style="margin-top: 10px;">حفظ الخصائص</button>
                 </form>
             </div>
-            <div class="collapsible-header" onclick="toggleSection('sec2')"><span>📝 إدارة النصوص والظهور</span><span id="icon-sec2">▼</span></div>
+            <div class="collapsible-header" onclick="toggleSection('sec2')"><span>📝 إدارة النصوص وتسميات التصنيفات</span><span id="icon-sec2">▼</span></div>
             <div id="sec2" class="collapsible-content">
                 <form action="/update-texts" method="POST">
+                    <h4 style="color: #fbbf24; font-size: 13px; margin-bottom: 10px;">🏷️ أسماء التصنيفات الثلاثة في المتجر:</h4>
+                    <div class="row-item">
+                        <span>اسم التصنيف الأول:</span>
+                        <input type="text" name="txt_cat_1_name" value="{{ config.texts.cat_1_name }}" required>
+                    </div>
+                    <div class="row-item">
+                        <span>اسم التصنيف الثاني:</span>
+                        <input type="text" name="txt_cat_2_name" value="{{ config.texts.cat_2_name }}" required>
+                    </div>
+                    <div class="row-item">
+                        <span>اسم التصنيف الثالث:</span>
+                        <input type="text" name="txt_cat_3_name" value="{{ config.texts.cat_3_name }}" required>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
+                    <h4 style="color: #fbbf24; font-size: 13px; margin-bottom: 10px;">📝 باقي نصوص وعناوين المتجر:</h4>
                     {% for key, val in config.texts.items() %}
-                        <div class="row-item">
-                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #fff; cursor: pointer; width: 45%; margin: 0;">
-                                <input type="checkbox" name="vis_{{ key }}" {% if vis[key] %}checked{% endif %}>{{ key }}
-                            </label>
-                            <input type="text" name="txt_{{ key }}" value="{{ val }}" required>
-                        </div>
+                        {% if not key.startswith('cat_') %}
+                            <div class="row-item">
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #fff; cursor: pointer; width: 45%; margin: 0;">
+                                    <input type="checkbox" name="vis_{{ key }}" {% if vis[key] %}checked{% endif %}>{{ key }}
+                                </label>
+                                <input type="text" name="txt_{{ key }}" value="{{ val }}" required>
+                            </div>
+                        {% endif %}
                     {% endfor %}
-                    <button type="submit" style="margin-top: 15px;">حفظ النصوص</button>
+                    <button type="submit" style="margin-top: 15px;">حفظ النصوص والتصنيفات ✅</button>
                 </form>
             </div>
             <div class="collapsible-header" onclick="toggleSection('sec3')"><span>🎨 تعديل الألوان والتصميم وخلفية الموقع</span><span id="icon-sec3">▼</span></div>
@@ -1531,9 +1554,9 @@ admin_template = """
                     <label>{{ config.texts.label_title }}</label><input type="text" name="title" required>
                     <label>تصنيف القطعة:</label>
                     <select name="category" style="background:#000; color:#fff; padding:10px; border-radius:8px; border:1px solid #333; width:100%; outline:none;" required>
-                        <option value="ديكور منزلي">🏠 ديكور منزلي</option>
-                        <option value="شمعدانات ومزهريات">🏺 شمعدانات ومزهريات</option>
-                        <option value="كتب ومقتنيات">📚 كتب ومقتنيات</option>
+                        <option value="{{ config.texts.cat_1_name }}">{{ config.texts.cat_1_name }}</option>
+                        <option value="{{ config.texts.cat_2_name }}">{{ config.texts.cat_2_name }}</option>
+                        <option value="{{ config.texts.cat_3_name }}">{{ config.texts.cat_3_name }}</option>
                     </select>
                     <label>حالة القطعة (اختياري):</label>
                     <select name="condition" style="background:#000; color:#fff; padding:10px; border-radius:8px; border:1px solid #333; width:100%; outline:none;">
@@ -1567,9 +1590,9 @@ admin_template = """
                         <form action="/update-product-details/{{ p.id }}" method="POST" style="display: flex; gap: 6px; width: 100%; margin: 0; align-items: center; flex-wrap: wrap;">
                             <input type="text" name="new_price" value="{{ p.numeric_price }}" placeholder="السعر" style="margin:0; font-size:11px; padding:6px; flex:1;" required>
                             <select name="category" style="background:#000; color:#fff; font-size:11px; padding:6px; border:1px solid #333; border-radius:6px; flex:1;">
-                                <option value="ديكور منزلي" {% if p.category == 'ديكور منزلي' %}selected{% endif %}>ديكور منزلي</option>
-                                <option value="شمعدانات ومزهريات" {% if p.category == 'شمعدانات ومزهريات' %}selected{% endif %}>شمعدانات ومزهريات</option>
-                                <option value="كتب ومقتنيات" {% if p.category == 'كتب ومقتنيات' %}selected{% endif %}>كتب ومقتنيات</option>
+                                <option value="{{ config.texts.cat_1_name }}" {% if p.category == config.texts.cat_1_name %}selected{% endif %}>{{ config.texts.cat_1_name }}</option>
+                                <option value="{{ config.texts.cat_2_name }}" {% if p.category == config.texts.cat_2_name %}selected{% endif %}>{{ config.texts.cat_2_name }}</option>
+                                <option value="{{ config.texts.cat_3_name }}" {% if p.category == config.texts.cat_3_name %}selected{% endif %}>{{ config.texts.cat_3_name }}</option>
                             </select>
                             <select name="condition" style="background:#000; color:#fff; font-size:11px; padding:6px; border:1px solid #333; border-radius:6px; flex:1;">
                                 <option value="">-- بدون حالة --</option>
@@ -2013,7 +2036,7 @@ def add_product():
     global product_id_counter
     if site_controls['block_posting']: return redirect(url_for('index'))
     title = request.form.get('title')
-    category = request.form.get('category', 'ديكور منزلي').strip()
+    category = request.form.get('category', site_config['texts']['cat_1_name']).strip()
     condition = request.form.get('condition', '').strip()
     raw_price = request.form.get('price', '')
     raw_old = request.form.get('old_price', '')
@@ -2034,7 +2057,7 @@ def add_product():
 def admin_add_product():
     global product_id_counter
     title = request.form.get('title')
-    category = request.form.get('category', 'ديكور منزلي').strip()
+    category = request.form.get('category', site_config['texts']['cat_1_name']).strip()
     condition = request.form.get('condition', '').strip()
     raw_price = request.form.get('price', '')
     raw_old = request.form.get('old_price', '')
@@ -2107,7 +2130,8 @@ def update_texts():
     for key in site_config['texts']:
         form_txt = request.form.get(f'txt_{key}')
         if form_txt: site_config['texts'][key] = form_txt
-        text_visibility[key] = True if request.form.get(f'vis_{key}') == 'on' else False
+        if not key.startswith('cat_'):
+            text_visibility[key] = True if request.form.get(f'vis_{key}') == 'on' else False
     return redirect(url_for('admin'))
 
 @app.route('/update-config', methods=['POST'])
