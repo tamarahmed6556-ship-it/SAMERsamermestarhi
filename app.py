@@ -1318,15 +1318,16 @@ admin_template = """
                     {% for g in gifts %}
                         <div class="product-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
                             <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                                <span><b>{{ g.title }}</b> ({{ g.price }})</span>
+                                <span><b>{{ g.title }}</b> (السعر الحالي: {{ g.price }}{% if g.old_price %} - القديم: {{ g.old_price }}{% endif %})</span>
                                 <div class="product-actions">
                                     <form action="/toggle-sold-gift/{{ g.id }}" method="POST" style="margin:0;"><button type="submit" class="{% if g.is_sold %}unsold-btn{% else %}sold-btn{% endif %}">{% if g.is_sold %}إلغاء البيع{% else %}تم البيع{% endif %}</button></form>
                                     <form action="/delete-gift/{{ g.id }}" method="POST" style="margin:0;"><button type="submit" class="delete-btn">حذف</button></form>
                                 </div>
                             </div>
                             <form action="/update-gift-discount/{{ g.id }}" method="POST" style="display: flex; gap: 6px; width: 100%; margin: 0; align-items: center;">
-                                <input type="text" name="old_price" placeholder="السعر القديم (اختياري)" value="{{ g.old_price or '' }}" style="margin:0; font-size:11px; padding:6px;">
-                                <button type="submit" class="discount-btn" style="margin:0; width: auto; padding: 6px 12px;">تحديث الخصم</button>
+                                <input type="text" name="new_price" placeholder="السعر الجديد (مثال: 10)" style="margin:0; font-size:11px; padding:6px;" required>
+                                <input type="text" name="old_price" placeholder="السعر القديم (مثال: 15)" style="margin:0; font-size:11px; padding:6px;" required>
+                                <button type="submit" class="discount-btn" style="margin:0; width: auto; padding: 6px 12px;">تطبيق الخصم 🏷️</button>
                             </form>
                         </div>
                     {% endfor %}
@@ -1413,15 +1414,16 @@ admin_template = """
                 {% for p in products %}
                     <div class="product-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
                         <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                            <span><b>{{ p.title }}</b> ({{ p.price }})</span>
+                            <span><b>{{ p.title }}</b> (السعر الحالي: {{ p.price }}{% if p.old_price %} - القديم: {{ p.old_price }}{% endif %})</span>
                             <div class="product-actions">
                                 <form action="/toggle-sold/{{ p.id }}" method="POST" style="margin:0;"><button type="submit" class="{% if p.is_sold %}unsold-btn{% else %}sold-btn{% endif %}">{% if p.is_sold %}إلغاء البيع{% else %}تم البيع{% endif %}</button></form>
                                 <form action="/delete/{{ p.id }}" method="POST" style="margin:0;"><button type="submit" class="delete-btn">حذف</button></form>
                             </div>
                         </div>
                         <form action="/update-product-discount/{{ p.id }}" method="POST" style="display: flex; gap: 6px; width: 100%; margin: 0; align-items: center;">
-                            <input type="text" name="old_price" placeholder="السعر القديم (اختياري لتفعيل الخصم)" value="{{ p.old_price or '' }}" style="margin:0; font-size:11px; padding:6px;">
-                            <button type="submit" class="discount-btn" style="margin:0; width: auto; padding: 6px 12px;">تحديث الخصم</button>
+                            <input type="text" name="new_price" placeholder="السعر الجديد (مثال: 10)" style="margin:0; font-size:11px; padding:6px;" required>
+                            <input type="text" name="old_price" placeholder="السعر القديم (مثال: 15)" style="margin:0; font-size:11px; padding:6px;" required>
+                            <button type="submit" class="discount-btn" style="margin:0; width: auto; padding: 6px 12px;">تطبيق الخصم 🏷️</button>
                         </form>
                     </div>
                 {% endfor %}
@@ -1677,10 +1679,15 @@ def toggle_sold_gift(g_id):
 @app.route('/update-gift-discount/<int:g_id>', methods=['POST'])
 def update_gift_discount(g_id):
     global gifts
+    raw_new = request.form.get('new_price', '').strip()
     raw_old = request.form.get('old_price', '').strip()
     for g in gifts:
         if g['id'] == g_id:
-            old_price, discount_percent = calculate_discount(re.sub(r'[^0-9.]', '', str(g['price'])), raw_old)
+            if raw_new:
+                g['price'] = format_price(raw_new)
+                try: g['numeric_price'] = float(re.sub(r'[^0-9.]', '', str(raw_new)))
+                except Exception: pass
+            old_price, discount_percent = calculate_discount(raw_new, raw_old)
             g['old_price'] = old_price
             g['discount_percent'] = discount_percent
     return redirect(url_for('admin'))
@@ -1688,10 +1695,15 @@ def update_gift_discount(g_id):
 @app.route('/update-product-discount/<int:p_id>', methods=['POST'])
 def update_product_discount(p_id):
     global products
+    raw_new = request.form.get('new_price', '').strip()
     raw_old = request.form.get('old_price', '').strip()
     for p in products:
         if p['id'] == p_id:
-            old_price, discount_percent = calculate_discount(re.sub(r'[^0-9.]', '', str(p['price'])), raw_old)
+            if raw_new:
+                p['price'] = format_price(raw_new)
+                try: p['numeric_price'] = float(re.sub(r'[^0-9.]', '', str(raw_new)))
+                except Exception: pass
+            old_price, discount_percent = calculate_discount(raw_new, raw_old)
             p['old_price'] = old_price
             p['discount_percent'] = discount_percent
     return redirect(url_for('admin'))
@@ -1904,27 +1916,29 @@ def toggle_sold(p_id):
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     global ADMIN_PASSWORD, current_html_template, login_attempts, lockout_until, site_stats
-    authorized = False
-    error = False
     current_time = time.time()
     is_locked = current_time < lockout_until
     remaining_seconds = int(lockout_until - current_time) if is_locked else 0
+    
     if request.method == 'POST':
-        if is_locked:
-            return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=False, error=True, is_locked=True, remaining_seconds=remaining_seconds, raw_template=current_html_template, color_names_ar=color_names_ar)
-        if request.form.get('password') == ADMIN_PASSWORD:
-            authorized = True
-            login_attempts = 0
-        else:
-            error = True
-            login_attempts += 1
-            if login_attempts >= 5:
-                lockout_until = current_time + 900
-                is_locked = True
-                remaining_seconds = 900
+        if 'password' in request.form:
+            if is_locked:
+                return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=False, error=True, is_locked=True, remaining_seconds=remaining_seconds, raw_template=current_html_template, color_names_ar=color_names_ar)
+            if request.form.get('password') == ADMIN_PASSWORD:
+                session['admin_logged'] = True
                 login_attempts = 0
-    remaining_attempts = max(0, 5 - login_attempts)
-    return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=authorized, error=error, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=remaining_attempts, raw_template=current_html_template, color_names_ar=color_names_ar)
+            else:
+                error = True
+                login_attempts += 1
+                if login_attempts >= 5:
+                    lockout_until = current_time + 900
+                    is_locked = True
+                    remaining_seconds = 900
+                    login_attempts = 0
+                return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=False, error=error, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
+                
+    authorized = session.get('admin_logged', False)
+    return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=authorized, error=False, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
