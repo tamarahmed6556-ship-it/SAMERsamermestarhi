@@ -93,7 +93,7 @@ site_controls = {
     "use_logo_image": False,
     "logo_image": "",
     "logo_size": "130px",
-    "logo_zoom": 100,
+    "logo_zoom": 150,
     "logo_pos_x": 50,
     "logo_pos_y": 50,
     "enable_logo_pulse": True,
@@ -1599,8 +1599,25 @@ admin_template = """
                 const output = document.getElementById('logoPreviewImg');
                 output.src = reader.result;
                 output.style.display = 'block';
+                
+                // تعيين زوم افتراضي 150% وإزاحة 50% لتظهر بوسط المعاينة مباشرة
+                const zoomRange = document.getElementById('logoZoomRange');
+                const posXRange = document.getElementById('logoPosXRange');
+                const posYRange = document.getElementById('logoPosYRange');
+                const zoomVal = document.getElementById('zoomVal');
+                
+                if(zoomRange && zoomRange.value < 100) {
+                    zoomRange.value = 150;
+                    if(zoomVal) zoomVal.innerText = "150%";
+                }
+                if(posXRange) posXRange.value = 50;
+                if(posYRange) posYRange.value = 50;
+                
+                updatePreviewStyle();
             };
-            reader.readAsDataURL(event.target.files[0]);
+            if(event.target.files[0]) {
+                reader.readAsDataURL(event.target.files[0]);
+            }
         }
         function updatePreviewStyle() {
             const img = document.getElementById('logoPreviewImg');
@@ -1919,7 +1936,7 @@ def admin_add_auction():
     current_price = format_price(raw_price)
     min_bid = format_price(raw_min)
     max_price = format_price(raw_max) if raw_max else ""
-    images_list = [process_and_compress_image(f) for f in request.files.getlist('auction_images') if f and f.filename != '']
+    images_list = [process_and_compress_image(f) for f in request.files.getlist('auction_images'] if f and f.filename != '']
     if title and current_price:
         auctions.insert(0, {"id": auction_id_counter, "title": title, "description": description, "current_price": current_price, "min_bid": min_bid, "max_price": max_price, "end_time": end_time.isoformat(), "images": [img for img in images_list if img], "bids": []})
         auction_id_counter += 1
@@ -2054,7 +2071,7 @@ def update_logo():
     size = request.form.get('logo_size')
     if size: site_controls['logo_size'] = size
 
-    try: site_controls['logo_zoom'] = int(request.form.get('logo_zoom', 100))
+    try: site_controls['logo_zoom'] = int(request.form.get('logo_zoom', 150))
     except ValueError: pass
 
     try: site_controls['logo_pos_x'] = int(request.form.get('logo_pos_x', 50))
