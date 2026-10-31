@@ -12,7 +12,6 @@ import time
 app = Flask(__name__)
 app.secret_key = 'samemomomo_secret_key'
 
-# جعل عمر الجلسة 24 ساعة (يوم كامل)
 @app.before_request
 def make_session_permanent():
     session.permanent = True
@@ -27,7 +26,6 @@ reviews = [
     {"id": 2, "name": "عمر خالد", "rating": 5, "comment": "تجربة شراء ممتازة والتعامل راقي جداً."}
 ]
 
-# قائمة التصنيفات الديناميكية للمتجر
 categories_list = ["ديكور منزلي", "شمعدانات ومزهريات", "كتب ومقتنيات"]
 
 product_id_counter = 1
@@ -172,7 +170,7 @@ site_config = {
         "label_title": "اسم المنتج أو القطعة",
         "input_title_placeholder": "أدخل اسم القطعة",
         "label_price": "السعر الحالي / السعر بعد الخصم",
-        "input_price_placeholder": "أدخل الرقم فقط (مثال: 15)",
+        "input_price_placeholder": "أدخل الرقم فقط (مثال: 13)",
         "label_old_price": "السعر القديم قبل الخصم (اختياري)",
         "label_quantity": "الكمية المتوفرة",
         "input_quantity_placeholder": "أدخل الكمية (مثال: 1)",
@@ -206,9 +204,9 @@ site_config = {
         "product_bg": "#111111",           
         "product_title": "#ffffff",        
         "product_price": "#25d366",        
-        "whatsapp_btn": "#25d366",         
-        "share_btn_color": "#2563eb",      
-        "cart_btn": "#dc2626",             
+        "whatsapp_btn": "#000000",         
+        "share_btn_color": "#000000",      
+        "cart_btn": "#000000",             
         "toggle_btn": "#25d366",           
         "form_main_title": "#ffffff",      
         "label_title": "#cccccc",          
@@ -235,8 +233,8 @@ color_names_ar = {
     "product_bg": "لون خلفية بطاقة/مربع المنتج",
     "product_title": "لون عنوان المنتج",
     "product_price": "لون سعر المنتج والكمية",
-    "whatsapp_btn": "لون زر عرض التفاصيل والمشاركة",
-    "share_btn_color": "لون ثانوي إضافي",
+    "whatsapp_btn": "لون خلفية زر عرض التفاصيل",
+    "share_btn_color": "لون زر المشاركة",
     "cart_btn": "لون خلفية زر أضف إلى السلة",
     "toggle_btn": "لون زر فتح وإغلاق قائمة الإضافة",
     "form_main_title": "لون عنوان نموذج الإضافة",
@@ -274,15 +272,15 @@ product_detail_template = """
         .gallery { display: flex; flex-direction: row; overflow-x: auto; gap: 10px; margin-bottom: 20px; }
         .gallery img { width: 100%; max-height: 500px; object-fit: contain; border-radius: 8px; background: #000; border: 1px solid #333; flex: 0 0 100%; }
         .product-title { font-size: 22px; font-weight: bold; color: {{ config.colors.product_title }}; margin-bottom: 10px; }
-        .product-price-box { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .product-price-box { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .product-price { font-size: 18px; color: {{ config.colors.product_price }}; font-weight: bold; }
         .old-price { font-size: 14px; color: #888; text-decoration: line-through; }
         .discount-badge { background: #dc2626; color: #fff; padding: 2px 8px; font-size: 11px; font-weight: bold; border-radius: 4px; }
         .condition-badge { display: inline-block; background: #1f2937; color: #38bdf8; border: 1px solid #38bdf8; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 15px; }
         .category-badge { display: inline-block; background: #374151; color: #fbbf24; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 15px; margin-right: 5px; }
         .product-desc { background: #000; border: 1px solid #222; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: right; color: #ddd; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
-        .buy-toggle-btn { display: block; text-align: center; background: {{ config.colors.whatsapp_btn }}; color: white; padding: 12px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; margin-bottom: 10px; border: none; width: 100%; cursor: pointer; }
-        .share-btn { display: block; text-align: center; background: {{ config.colors.whatsapp_btn }}; color: white; padding: 12px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; margin-bottom: 10px; border: none; width: 100%; cursor: pointer; }
+        .buy-toggle-btn { display: block; text-align: center; background: {{ config.colors.whatsapp_btn }}; color: #ffffff; border: 1px solid #333; padding: 12px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; margin-bottom: 10px; width: 100%; cursor: pointer; box-sizing: border-box; }
+        .share-btn { display: block; text-align: center; background: {{ config.colors.share_btn_color }}; color: #ffffff; border: 1px solid #333; padding: 12px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; margin-bottom: 10px; width: 100%; cursor: pointer; box-sizing: border-box; }
         .checkout-form { display: none; background: #000; border: 1px solid #333; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: right; }
         .checkout-form input { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #333; background: #111; color: #fff; box-sizing: border-box; font-size: 13px; outline: none; }
         .checkout-submit { background: #25d366; color: #fff; border: none; width: 100%; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
@@ -572,12 +570,12 @@ default_html_template = """
         
         .card-buttons { display: flex; flex-direction: column; gap: 6px; }
         
-        .contact-btn-wrapper { display: flex; align-items: stretch; width: 100%; border-radius: 6px; overflow: hidden; background: {{ config.colors.whatsapp_btn }}; }
-        .contact-btn { display: flex; align-items: center; justify-content: center; text-align: center; color: white; padding: 7px 10px; text-decoration: none; font-weight: bold; font-size: 11px; flex: 1; border: none; background: transparent; cursor: pointer; box-sizing: border-box; }
-        .inline-share-btn { display: flex; align-items: center; justify-content: center; background: transparent; color: white; padding: 7px 12px; border: none; cursor: pointer; text-decoration: none; box-sizing: border-box; border-right: 1px solid rgba(255,255,255,0.25); }
+        .contact-btn-wrapper { display: flex; align-items: stretch; width: 100%; border-radius: 6px; overflow: hidden; background: {{ config.colors.whatsapp_btn }}; border: 1px solid #333; }
+        .contact-btn { display: flex; align-items: center; justify-content: center; text-align: center; color: #ffffff; padding: 7px 10px; text-decoration: none; font-weight: bold; font-size: 11px; flex: 1; border: none; background: transparent; cursor: pointer; box-sizing: border-box; }
+        .inline-share-btn { display: flex; align-items: center; justify-content: center; background: transparent; color: #ffffff; padding: 7px 12px; border: none; cursor: pointer; text-decoration: none; box-sizing: border-box; border-right: 1px solid #333; }
         .inline-share-btn svg { width: 14px; height: 14px; fill: currentColor; }
 
-        .add-to-cart-btn { background: {{ config.colors.cart_btn }}; color: white; border: none; padding: 7px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer; text-align: center; width: 100%; text-decoration: none; box-sizing: border-box; }
+        .add-to-cart-btn { background: {{ config.colors.cart_btn }}; color: #ffffff; border: 1px solid #333; padding: 7px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer; text-align: center; width: 100%; text-decoration: none; box-sizing: border-box; }
         .sold-btn-disabled { background: #555 !important; }
 
         .scroll-top-btn { display: none; position: fixed; bottom: 25px; right: 25px; background: {{ config.colors.whatsapp_btn }}; color: #fff; width: 42px; height: 42px; border-radius: 50%; border: 2px solid #fff; font-size: 18px; font-weight: bold; cursor: pointer; z-index: 500; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.6); }
@@ -803,7 +801,7 @@ default_html_template = """
             </div>
             <div class="input-group">
                 <label style="color: {{ config.colors.label_title }};">{{ config.texts.label_old_price }} (اختياري)</label>
-                <input type="text" name="old_price" placeholder="أدخل السعر القديم قبل الخصم">
+                <input type="text" name="old_price" placeholder="أدخل السعر القديم قبل الخصم (مثال: 15)">
             </div>
             <div class="input-group">
                 <label style="color: {{ config.colors.label_title }};">{{ config.texts.label_quantity }}</label>
@@ -1574,8 +1572,8 @@ admin_template = """
                         <option value="مستهلكة قليلاً">مستهلكة قليلاً</option>
                         <option value="مهترئة قليلاً">مهترئة قليلاً</option>
                     </select>
-                    <label>{{ config.texts.label_price }} (أدخل الرقم فقط - يتم إضافة {{ controls.currency_symbol }} تلقائياً)</label><input type="text" name="price">
-                    <label>{{ config.texts.label_old_price }} (اختياري للتخفيض)</label><input type="text" name="old_price" placeholder="مثال: 25">
+                    <label>{{ config.texts.label_price }} (السعر بعد الخصم)</label><input type="text" name="price" placeholder="مثال: 13">
+                    <label>{{ config.texts.label_old_price }} (السعر القديم قبل الخصم - اختياري للتخفيض)</label><input type="text" name="old_price" placeholder="مثال: 15">
                     <label>{{ config.texts.label_quantity }}</label><input type="text" name="quantity" value="1">
                     <label>{{ config.texts.label_description }}</label><textarea name="description" rows="3"></textarea>
                     <label class="checkbox-label" style="margin-top: 10px;"><input type="checkbox" name="is_featured"> تعيين كقطعة مميزة ⭐</label>
@@ -1583,12 +1581,12 @@ admin_template = """
                     <button type="submit">نشر المنتج</button>
                 </form>
             </div>
-            <div class="collapsible-header" onclick="toggleSection('sec_products')"><span>📦 قائمة المنتجات الحالية وتعديل التصنيفات والتميز</span><span id="icon-sec_products">▼</span></div>
+            <div class="collapsible-header" onclick="toggleSection('sec_products')"><span>📦 قائمة المنتجات الحالية وتعديل الأسعار والخصومات</span><span id="icon-sec_products">▼</span></div>
             <div id="sec_products" class="collapsible-content">
                 {% for p in products %}
                     <div class="product-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
                         <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; flex-wrap: wrap; gap: 5px;">
-                            <span><b>{{ p.title }}</b> (السعر: {{ p.price }} | التصنيف: {{ p.category }})</span>
+                            <span><b>{{ p.title }}</b> (السعر: {{ p.price }} {% if p.old_price %}- القديم: {{ p.old_price }} (خصم {{ p.discount_percent }}%){% endif %} | التصنيف: {{ p.category }})</span>
                             <div class="product-actions">
                                 <form action="/toggle-featured/{{ p.id }}" method="POST" style="margin:0;"><button type="submit" class="featured-btn">{% if p.is_featured %}⭐ إلغاء التميز{% else %}⭐ مميزة{% endif %}</button></form>
                                 <form action="/toggle-sold/{{ p.id }}" method="POST" style="margin:0;"><button type="submit" class="{% if p.is_sold %}unsold-btn{% else %}sold-btn{% endif %}">{% if p.is_sold %}إلغاء البيع{% else %}تم البيع{% endif %}</button></form>
@@ -1596,7 +1594,8 @@ admin_template = """
                             </div>
                         </div>
                         <form action="/update-product-details/{{ p.id }}" method="POST" style="display: flex; gap: 6px; width: 100%; margin: 0; align-items: center; flex-wrap: wrap;">
-                            <input type="text" name="new_price" value="{{ p.numeric_price }}" placeholder="السعر" style="margin:0; font-size:11px; padding:6px; flex:1;" required>
+                            <input type="text" name="new_price" value="{{ p.numeric_price }}" placeholder="السعر الحالي" style="margin:0; font-size:11px; padding:6px; flex:1;" required>
+                            <input type="text" name="old_price" value="{% if p.raw_old_price %}{{ p.raw_old_price }}{% endif %}" placeholder="السعر القديم (اختياري)" style="margin:0; font-size:11px; padding:6px; flex:1;">
                             <select name="category" style="background:#000; color:#fff; font-size:11px; padding:6px; border:1px solid #333; border-radius:6px; flex:1;">
                                 {% for cat in cats %}
                                     <option value="{{ cat }}" {% if p.category == cat %}selected{% endif %}>{{ cat }}</option>
@@ -1609,7 +1608,7 @@ admin_template = """
                                 <option value="مستهلكة قليلاً" {% if p.condition == 'مستهلكة قليلاً' %}selected{% endif %}>مستهلكة قليلاً</option>
                                 <option value="مهترئة قليلاً" {% if p.condition == 'مهترئة قليلاً' %}selected{% endif %}>مهترئة قليلاً</option>
                             </select>
-                            <button type="submit" class="discount-btn" style="margin:0; width: auto; padding: 6px 12px;">حفظ التعديلات 🏷️</button>
+                            <button type="submit" class="discount-btn" style="margin:0; width: auto; padding: 6px 12px;">حفظ وتطبيق الخصم 🏷️</button>
                         </form>
                     </div>
                 {% endfor %}
@@ -1947,6 +1946,7 @@ def update_gift_discount(g_id):
 def update_product_details(p_id):
     global products
     raw_new = request.form.get('new_price', '').strip()
+    raw_old = request.form.get('old_price', '').strip()
     category = request.form.get('category', '').strip()
     condition = request.form.get('condition', '').strip()
     for p in products:
@@ -1955,6 +1955,10 @@ def update_product_details(p_id):
                 p['price'] = format_price(raw_new)
                 try: p['numeric_price'] = float(re.sub(r'[^0-9.]', '', str(raw_new)))
                 except Exception: pass
+            old_price, discount_percent = calculate_discount(raw_new, raw_old)
+            p['old_price'] = old_price
+            p['discount_percent'] = discount_percent
+            p['raw_old_price'] = raw_old
             if category: p['category'] = category
             p['condition'] = condition
     return redirect(url_for('admin'))
@@ -2073,7 +2077,7 @@ def add_product():
     try: numeric_price = float(re.sub(r'[^0-9.]', '', str(raw_price)))
     except Exception: pass
     if title:
-        products.insert(0, {"id": product_id_counter, "title": title, "category": category, "condition": condition, "price": price, "old_price": old_price, "discount_percent": discount_percent, "numeric_price": numeric_price, "quantity": quantity, "description": description, "is_featured": False, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
+        products.insert(0, {"id": product_id_counter, "title": title, "category": category, "condition": condition, "price": price, "old_price": old_price, "discount_percent": discount_percent, "raw_old_price": raw_old, "numeric_price": numeric_price, "quantity": quantity, "description": description, "is_featured": False, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
         product_id_counter += 1
     return redirect(url_for('index'))
 
@@ -2095,7 +2099,7 @@ def admin_add_product():
     try: numeric_price = float(re.sub(r'[^0-9.]', '', str(raw_price)))
     except Exception: pass
     if title:
-        products.insert(0, {"id": product_id_counter, "title": title, "category": category, "condition": condition, "price": price, "old_price": old_price, "discount_percent": discount_percent, "numeric_price": numeric_price, "quantity": quantity, "description": description, "is_featured": is_featured, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
+        products.insert(0, {"id": product_id_counter, "title": title, "category": category, "condition": condition, "price": price, "old_price": old_price, "discount_percent": discount_percent, "raw_old_price": raw_old, "numeric_price": numeric_price, "quantity": quantity, "description": description, "is_featured": is_featured, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
         product_id_counter += 1
     return redirect(url_for('admin'))
 
