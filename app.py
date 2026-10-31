@@ -13,6 +13,7 @@ app = Flask(__name__)
 app.secret_key = 'samemomomo_secret_key'
 
 products = []
+gifts = []
 auctions = []
 notes = []
 reviews = [
@@ -20,6 +21,7 @@ reviews = [
     {"id": 2, "name": "عمر خالد", "rating": 5, "comment": "تجربة شراء ممتازة والتعامل راقي جداً."}
 ]
 product_id_counter = 1
+gift_id_counter = 1
 auction_id_counter = 1
 note_id_counter = 1
 review_id_counter = 3
@@ -60,20 +62,6 @@ def get_cart():
     all_carts = load_persistent_cart()
     uid = get_user_cart_id()
     cart = all_carts.get(uid, [])
-    
-    updated = False
-    for item in cart:
-        if not item.get('image') or not item.get('title'):
-            prod = next((p for p in products if p['id'] == item['id']), None)
-            if prod:
-                item['title'] = prod['title']
-                item['price'] = prod['price']
-                item['image'] = prod['images'][0] if prod['images'] and len(prod['images']) > 0 else ""
-                updated = True
-    if updated:
-        all_carts[uid] = cart
-        save_persistent_cart(all_carts)
-        
     return cart
 
 def update_cart_in_storage(cart):
@@ -90,6 +78,7 @@ site_controls = {
     "enable_contact_btn": True,   
     "enable_reviews_page": True,  
     "enable_auctions": True,      
+    "enable_gifts": True,
     "enable_cart": True,
     "enable_cod_note": True,
     "enable_forgot_pass": True,
@@ -118,7 +107,9 @@ text_visibility = {
     "settings_btn_text": True,
     "subtitle": True,
     "heading_products": True,
+    "heading_gifts": True,
     "no_products": True,
+    "no_gifts": True,
     "heading_auctions": True,
     "toggle_btn_open": True,
     "toggle_btn_close": True,
@@ -127,14 +118,11 @@ text_visibility = {
     "input_title_placeholder": True,
     "label_price": True,
     "input_price_placeholder": True,
+    "label_old_price": True,
     "label_quantity": True,
     "input_quantity_placeholder": True,
     "label_description": True,
     "input_description_placeholder": True,
-    "label_contact_method": True,
-    "contact_type_instagram": True,
-    "contact_type_phone": True,
-    "input_contact_placeholder": True,
     "upload_text": True,
     "submit_btn": True,
     "back_home": True,
@@ -158,23 +146,22 @@ site_config = {
         "settings_btn_text": "⚙️ الإعدادات ▼",
         "subtitle": "لكل قطعة حكاية",
         "heading_products": "المنتجات المعروضه",
+        "heading_gifts": "🎁 قسم الهدايا المميزة",
         "no_products": "لا توجد منتجات معروضة حالياً.",
+        "no_gifts": "لا توجد هدايا معروضة حالياً.",
         "heading_auctions": "🔥 المزادات الحالية المشتعلة",
         "toggle_btn_open": "➕ إضافة قطعة جديدة",
         "toggle_btn_close": "✖ إغلاق القائمة",
         "form_main_title": "أضف قطعة جديدة للمتجر",
         "label_title": "اسم المنتج أو القطعة",
         "input_title_placeholder": "أدخل اسم القطعة",
-        "label_price": "السعر",
+        "label_price": "السعر الحالي / السعر بعد الخصم",
         "input_price_placeholder": "أدخل الرقم فقط (مثال: 15)",
+        "label_old_price": "السعر القديم قبل الخصم (اختياري)",
         "label_quantity": "الكمية المتوفرة",
         "input_quantity_placeholder": "أدخل الكمية (مثال: 1)",
         "label_description": "نبذة أو قصة عن المنتج",
         "input_description_placeholder": "اكتب قصة هذه القطعة أو نبذة عنها...",
-        "label_contact_method": "طريقة التواصل",
-        "contact_type_instagram": "حساب Instagram",
-        "contact_type_phone": "الرقم الخاص بي",
-        "input_contact_placeholder": "أدخل حساب الانستغرام أو الرقم",
         "upload_text": "اضغط هنا لاختيار صور المنتج 📸",
         "submit_btn": "نشر المنتج",
         "back_home": "← العودة إلى المتجر الرئيسي",
@@ -196,6 +183,7 @@ site_config = {
         "logo_bg": "#000000",              
         "logo_border": "#ef4444",          
         "products_heading": "#ffffff",     
+        "gifts_heading": "#ec4899",
         "no_products": "#777777",          
         "auctions_heading": "#fbbf24",     
         "product_bg": "#111111",           
@@ -224,6 +212,7 @@ color_names_ar = {
     "logo_border": "لون إطار وتوهج مربع الشعار",
     "subtitle": "لون وصف/شعار الموقع الفرعي",
     "products_heading": "لون عنوان قسم المنتجات المعروضة",
+    "gifts_heading": "لون عنوان قسم الهدايا 🎁",
     "no_products": "لون جملة عدم وجود منتجات",
     "auctions_heading": "لون عنوان قسم المزادات",
     "product_bg": "لون خلفية بطاقة/مربع المنتج",
@@ -243,17 +232,6 @@ color_names_ar = {
     "filter_btn_bg": "لون خلفية زر الفلترة ⌃",
     "filter_btn_text": "لون أيقونة ونصوص زر الفلترة"
 }
-
-def get_destination_url(target, encoded_msg=""):
-    target = target.strip()
-    if target.startswith("http://") or target.startswith("https://"):
-        return target
-    else:
-        clean_num = re.sub(r'[^0-9]', '', target)
-        if encoded_msg:
-            return f"https://api.whatsapp.com/send?phone={clean_num}&text={encoded_msg}"
-        else:
-            return f"https://wa.me/{clean_num}"
 
 def format_price(raw_price):
     if not raw_price:
@@ -279,7 +257,10 @@ product_detail_template = """
         .gallery { display: flex; flex-direction: row; overflow-x: auto; gap: 10px; margin-bottom: 20px; }
         .gallery img { width: 100%; max-height: 500px; object-fit: contain; border-radius: 8px; background: #000; border: 1px solid #333; flex: 0 0 100%; }
         .product-title { font-size: 22px; font-weight: bold; color: {{ config.colors.product_title }}; margin-bottom: 10px; }
-        .product-price { font-size: 18px; color: {{ config.colors.product_price }}; font-weight: bold; margin-bottom: 15px; }
+        .product-price-box { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .product-price { font-size: 18px; color: {{ config.colors.product_price }}; font-weight: bold; }
+        .old-price { font-size: 14px; color: #888; text-decoration: line-through; }
+        .discount-badge { background: #dc2626; color: #fff; padding: 2px 8px; font-size: 11px; font-weight: bold; border-radius: 4px; }
         .product-desc { background: #000; border: 1px solid #222; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: right; color: #ddd; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
         .buy-toggle-btn { display: block; text-align: center; background: {{ config.colors.whatsapp_btn }}; color: white; padding: 12px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; margin-bottom: 10px; border: none; width: 100%; cursor: pointer; }
         .share-btn { display: block; text-align: center; background: {{ config.colors.whatsapp_btn }}; color: white; padding: 12px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; margin-bottom: 10px; border: none; width: 100%; cursor: pointer; }
@@ -295,10 +276,14 @@ product_detail_template = """
     <div id="toast" class="toast-msg">✅ تم نسخ رابط المنتج</div>
     <div class="detail-container">
         <h1 class="product-title">{{ product.title }}</h1>
-        <div class="product-price">{{ product.price }}</div>
+        <div class="product-price-box">
+            <div class="product-price">{{ product.price }}</div>
+            {% if product.old_price %}<div class="old-price">{{ product.old_price }}</div>{% endif %}
+            {% if product.discount_percent %}<div class="discount-badge">خصم {{ product.discount_percent }}%</div>{% endif %}
+        </div>
         {% if product.description %}
         <div class="product-desc">
-            <b style="color: {{ config.colors.title }}; display: block; margin-bottom: 8px; text-align: right;">قصة القطعة:</b>
+            <b style="color: {{ config.colors.title }}; display: block; margin-bottom: 8px; text-align: right;">التفاصيل:</b>
             {{ product.description }}
         </div>
         {% endif %}
@@ -331,7 +316,7 @@ product_detail_template = """
     <script>
         function shareCurrentProduct() {
             const productUrl = window.location.href;
-            const shareText = `شاهد هذه القطعة المميزة من متجر عتيق:\n📌 {{ product.title }}\n💰 السعر: {{ product.price }}\n🔗 الرابط: ${productUrl}`;
+            const shareText = `شاهد هذه القطعة المميزة:\n📌 {{ product.title }}\n💰 السعر: {{ product.price }}\n🔗 الرابط: ${productUrl}`;
             if (navigator.share) { navigator.share({ title: '{{ product.title }}', text: shareText, url: productUrl }).catch(() => {}); }
             else {
                 navigator.clipboard.writeText(shareText);
@@ -506,7 +491,8 @@ default_html_template = """
         .auction-details { font-size: 13px; color: #ccc; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
         .bid-btn { background: #d97706; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; text-align: center; text-decoration: none; display: block; }
 
-        .products-section { width: 100%; max-width: 900px; margin-bottom: 20px; flex: 1; }
+        .products-section { width: 100%; max-width: 900px; margin-bottom: 20px; }
+        .gifts-section { width: 100%; max-width: 900px; margin-bottom: 30px; }
         .products-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; width: 100%; }
         @media (min-width: 768px) { .products-grid { grid-template-columns: repeat(4, 1fr); } }
         
@@ -518,11 +504,14 @@ default_html_template = """
         
         .product-card.sold-card { opacity: 0.65; }
         .sold-badge { position: absolute; top: 10px; right: 10px; background: #dc2626; color: white; padding: 4px 10px; font-size: 11px; font-weight: bold; border-radius: 4px; z-index: 2; }
+        .discount-badge-card { position: absolute; top: 10px; left: 10px; background: #dc2626; color: white; padding: 3px 8px; font-size: 10px; font-weight: bold; border-radius: 4px; z-index: 2; }
         .product-images { display: flex; flex-direction: row; overflow-x: auto; gap: 8px; background: #000; padding: 8px; width: 100%; box-sizing: border-box; }
         .product-images img { width: 100%; height: 140px; object-fit: cover; border-radius: 6px; flex: 0 0 100%; }
         .product-info { padding: 12px; }
         .product-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; color: {{ config.colors.product_title }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .product-price { color: {{ config.colors.product_price }}; font-weight: bold; margin-bottom: 8px; font-size: 13px; }
+        .product-price-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+        .product-price { color: {{ config.colors.product_price }}; font-weight: bold; font-size: 13px; }
+        .old-price-card { color: #888; font-size: 11px; text-decoration: line-through; }
         
         .card-buttons { display: flex; flex-direction: column; gap: 6px; }
         
@@ -641,6 +630,43 @@ default_html_template = """
     </div>
     {% endif %}
 
+    {% if controls.enable_gifts and gifts|length > 0 %}
+    <div class="gifts-section">
+        {% if vis.heading_gifts %}<h2 style="color: {{ config.colors.gifts_heading }}; margin-bottom: 15px; text-align: right;">{{ config.texts.heading_gifts }}</h2>{% endif %}
+        <div class="products-grid">
+            {% for g in gifts %}
+                <div class="product-card {% if g.is_sold %}sold-card{% endif %}">
+                    {% if g.is_sold %}<div class="sold-badge">تم البيع</div>{% endif %}
+                    {% if g.discount_percent %}<div class="discount-badge-card">خصم {{ g.discount_percent }}%</div>{% endif %}
+                    <div class="product-images">{% for img in g.images %}<img src="{{ img }}" alt="صورة الهدية">{% endfor %}</div>
+                    <div class="product-info">
+                        <div class="product-title" title="{{ g.title }}">{{ g.title }}</div>
+                        <div class="product-price-row">
+                            <div class="product-price">{{ g.price }}</div>
+                            {% if g.old_price %}<div class="old-price-card">{{ g.old_price }}</div>{% endif %}
+                        </div>
+                        <div class="card-buttons">
+                            {% if vis.view_details %}
+                                <div class="contact-btn-wrapper">
+                                    <a href="/product/{{ g.id }}" class="contact-btn {% if g.is_sold %}sold-btn-disabled{% endif %}">
+                                        {% if g.is_sold %}تم البيع{% else %}{{ config.texts.view_details }}{% endif %}
+                                    </a>
+                                    <button type="button" class="inline-share-btn {% if g.is_sold %}sold-btn-disabled{% endif %}" onclick="quickShareProduct('{{ g.title | replace("'", "\\'") }}', '{{ g.price }}', '/product/{{ g.id }}')" title="مشاركة الهدية">
+                                        <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
+                                    </button>
+                                </div>
+                            {% endif %}
+                            {% if controls.enable_cart and not g.is_sold %}
+                                <button type="button" class="add-to-cart-btn" onclick="addToCart({{ g.id }})">أضف إلى السلة 🛒</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <div class="products-section">
         {% if vis.heading_products %}<h2 style="color: {{ config.colors.products_heading }}; margin-bottom: 15px; text-align: right;">{{ config.texts.heading_products }}</h2>{% endif %}
         <div class="products-grid" id="productsGrid">
@@ -648,10 +674,14 @@ default_html_template = """
             {% for p in page_products %}
                 <div class="product-card {% if p.is_sold %}sold-card{% endif %}" data-title="{{ p.title }}" data-price="{{ p.numeric_price }}" data-id="{{ p.id }}">
                     {% if p.is_sold %}<div class="sold-badge">تم البيع</div>{% endif %}
+                    {% if p.discount_percent %}<div class="discount-badge-card">خصم {{ p.discount_percent }}%</div>{% endif %}
                     <div class="product-images">{% for img in p.images %}<img src="{{ img }}" alt="صورة">{% endfor %}</div>
                     <div class="product-info">
                         <div class="product-title" title="{{ p.title }}">{{ p.title }}</div>
-                        <div class="product-price">{{ p.price }}</div>
+                        <div class="product-price-row">
+                            <div class="product-price">{{ p.price }}</div>
+                            {% if p.old_price %}<div class="old-price-card">{{ p.old_price }}</div>{% endif %}
+                        </div>
                         <div class="card-buttons">
                             {% if vis.view_details %}
                                 <div class="contact-btn-wrapper">
@@ -693,6 +723,10 @@ default_html_template = """
                 <input type="text" name="price" {% if vis.input_price_placeholder %}placeholder="{{ config.texts.input_price_placeholder }}"{% endif %}>
             </div>
             <div class="input-group">
+                <label style="color: {{ config.colors.label_title }};">{{ config.texts.label_old_price }} (اختياري)</label>
+                <input type="text" name="old_price" placeholder="أدخل السعر القديم قبل الخصم">
+            </div>
+            <div class="input-group">
                 <label style="color: {{ config.colors.label_title }};">{{ config.texts.label_quantity }}</label>
                 <input type="text" name="quantity" placeholder="{{ config.texts.input_quantity_placeholder }}" value="1">
             </div>
@@ -721,7 +755,6 @@ default_html_template = """
     </footer>
     {% endif %}
     <script>
-        // حفظ واسترجاع موضع التمرير تلقائياً عند تصفح المنتجات والعودة
         window.addEventListener('beforeunload', function() {
             sessionStorage.setItem('scrollPosition', window.scrollY);
         });
@@ -744,7 +777,6 @@ default_html_template = """
             }
         });
 
-        // إيقاف الصعود التلقائي فوراً عند أي تفاعل أو نقر من المستخدم
         ['wheel', 'touchstart', 'mousedown', 'keydown'].forEach(eventType => {
             window.addEventListener(eventType, () => {
                 if (isAutoScrolling) {
@@ -758,7 +790,7 @@ default_html_template = """
             const targetPosition = 0;
             const startPosition = window.pageYOffset;
             const distance = targetPosition - startPosition;
-            const duration = 800; // مدة الصعود بالمللي ثانية
+            const duration = 800;
             let startTime = null;
 
             function animation(currentTime) {
@@ -787,7 +819,7 @@ default_html_template = """
         function quickShareProduct(title, price, path) {
             event.stopPropagation();
             const productUrl = window.location.origin + path;
-            const shareText = `شاهد هذه القطعة المميزة من متجر عتيق:\n📌 ${title}\n💰 السعر: ${price}\n🔗 الرابط: ${productUrl}`;
+            const shareText = `شاهد هذه القطعة المميزة:\n📌 ${title}\n💰 السعر: ${price}\n🔗 الرابط: ${productUrl}`;
             if (navigator.share) { navigator.share({ title: title, text: shareText, url: productUrl }).catch(() => {}); }
             else {
                 navigator.clipboard.writeText(shareText);
@@ -889,6 +921,7 @@ default_html_template = """
 </body>
 </html>
 """
+
 auction_detail_template = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -1159,6 +1192,7 @@ admin_template = """
                 <form action="/update-controls" method="POST">
                     <label class="checkbox-label"><input type="checkbox" name="enable_cart" {% if controls.enable_cart %}checked{% endif %}> تفعيل سلة المشتريات وزر "أضف إلى السلة"</label>
                     <label class="checkbox-label"><input type="checkbox" name="enable_auctions" {% if controls.enable_auctions %}checked{% endif %}> تفعيل قسم المزادات</label>
+                    <label class="checkbox-label"><input type="checkbox" name="enable_gifts" {% if controls.enable_gifts %}checked{% endif %}> تفعيل قسم الهدايا في الصفحة الرئيسية 🎁</label>
                     <label class="checkbox-label"><input type="checkbox" name="enable_scroll_top" {% if controls.enable_scroll_top %}checked{% endif %}> تفعيل زر "العودة إلى الأعلى" في المتجر</label>
                     <label class="checkbox-label"><input type="checkbox" name="enable_forgot_pass" {% if controls.enable_forgot_pass %}checked{% endif %}> تفعيل زر "نسيت كلمة السر" في صفحة الدخول</label>
                     <label class="checkbox-label"><input type="checkbox" name="block_posting" {% if controls.block_posting %}checked{% endif %}> منع المستخدمين من الإضافة</label>
@@ -1237,6 +1271,32 @@ admin_template = """
                     <button type="submit" style="background: #25d366; margin-top: 10px;">حفظ إعدادات الشعار ✅</button>
                 </form>
             </div>
+            
+            <div class="section-box" style="border-top: 2px solid #ec4899; margin-top: 25px; padding-top: 20px;">
+                <h3 style="color: #ec4899;">🎁 إضافة هدية جديدة للقسم</h3>
+                <form action="/admin-add-gift" method="POST" enctype="multipart/form-data">
+                    <label>اسم الهدية:</label><input type="text" name="title" required>
+                    <label>السعر الحالي / بعد الخصم:</label><input type="text" name="price" placeholder="مثال: 10" required>
+                    <label>السعر القديم قبل الخصم (اختياري):</label><input type="text" name="old_price" placeholder="مثال: 15">
+                    <label>وصف الهدية:</label><textarea name="description" rows="3"></textarea>
+                    <label>صور الهدية 📸:</label><input type="file" name="images" multiple accept="image/*" style="color: #fff; margin-bottom: 10px;">
+                    <button type="submit" style="background: #ec4899;">نشر الهدية 🎁</button>
+                </form>
+                <div style="margin-top: 15px;">
+                    <h4 style="color: #ec4899; font-size: 14px; margin-bottom: 10px;">هدايا القسم الحاليّة:</h4>
+                    {% if gifts|length == 0 %}<p style="color: #777; font-size: 12px; text-align: center;">لا توجد هدايا معروضة حالياً.</p>{% endif %}
+                    {% for g in gifts %}
+                        <div class="product-row">
+                            <span><b>{{ g.title }}</b> ({{ g.price }})</span>
+                            <div class="product-actions">
+                                <form action="/toggle-sold-gift/{{ g.id }}" method="POST" style="margin:0;"><button type="submit" class="{% if g.is_sold %}unsold-btn{% else %}sold-btn{% endif %}">{% if g.is_sold %}إلغاء البيع{% else %}تم البيع{% endif %}</button></form>
+                                <form action="/delete-gift/{{ g.id }}" method="POST" style="margin:0;"><button type="submit" class="delete-btn">حذف</button></form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
             <div class="collapsible-header" onclick="toggleSection('sec_auctions')"><span>🔨 إدارة وإطلاق المزادات</span><span id="icon-sec_auctions">▼</span></div>
             <div id="sec_auctions" class="collapsible-content">
                 <form action="/admin-add-auction" method="POST" enctype="multipart/form-data">
@@ -1305,6 +1365,7 @@ admin_template = """
                 <form action="/admin-add-product" method="POST" enctype="multipart/form-data">
                     <label>{{ config.texts.label_title }}</label><input type="text" name="title" required>
                     <label>{{ config.texts.label_price }} (أدخل الرقم فقط - يتم إضافة {{ controls.currency_symbol }} تلقائياً)</label><input type="text" name="price">
+                    <label>{{ config.texts.label_old_price }} (اختياري للتخفيض)</label><input type="text" name="old_price" placeholder="مثال: 25">
                     <label>{{ config.texts.label_quantity }}</label><input type="text" name="quantity" value="1">
                     <label>{{ config.texts.label_description }}</label><textarea name="description" rows="3"></textarea>
                     <label>{{ config.texts.upload_text }}</label><input type="file" name="images" multiple accept="image/*" style="color: #fff; margin-bottom: 10px;">
@@ -1366,6 +1427,19 @@ def process_and_compress_image(image_file):
     except Exception:
         return None
 
+def calculate_discount(price_str, old_price_str):
+    if not old_price_str:
+        return None, None
+    try:
+        p_val = float(re.sub(r'[^0-9.]', '', str(price_str)))
+        o_val = float(re.sub(r'[^0-9.]', '', str(old_price_str)))
+        if o_val > p_val and o_val > 0:
+            percent = int(round(((o_val - p_val) / o_val) * 100))
+            return format_price(str(old_price_str)), percent
+    except Exception:
+        pass
+    return None, None
+
 @app.route('/')
 def index():
     global current_html_template, site_stats
@@ -1381,7 +1455,7 @@ def index():
     start_idx = (page - 1) * per_page
     end_idx = start_idx + per_page
     page_products = products[start_idx:end_idx]
-    return render_template_string(current_html_template, products=products, page_products=page_products, current_page=page, total_pages=total_pages, auctions=auctions, config=site_config, controls=site_controls, vis=text_visibility, cart_count=len(cart), error=None)
+    return render_template_string(current_html_template, products=products, page_products=page_products, gifts=gifts, current_page=page, total_pages=total_pages, auctions=auctions, config=site_config, controls=site_controls, vis=text_visibility, cart_count=len(cart), error=None)
 
 @app.route('/cart')
 def cart_page():
@@ -1391,7 +1465,8 @@ def cart_page():
 
 @app.route('/add-to-cart-ajax/<int:p_id>', methods=['POST'])
 def add_to_cart_ajax(p_id):
-    product = next((p for p in products if p['id'] == p_id), None)
+    all_items = products + gifts
+    product = next((p for p in all_items if p['id'] == p_id), None)
     if product and not product.get('is_sold', False):
         cart = list(get_cart())
         already_exists = any(item['id'] == p_id for item in cart)
@@ -1473,7 +1548,8 @@ def buy_product(p_id):
     province = request.form.get('province', '').strip()
     street = request.form.get('street', '').strip()
     phone = request.form.get('phone', '').strip()
-    product = next((p for p in products if p['id'] == p_id), None)
+    all_items = products + gifts
+    product = next((p for p in all_items if p['id'] == p_id), None)
     if not product: return redirect(url_for('index'))
     clean_phone = phone.replace(" ", "")
     if not clean_phone.isdigit() or len(clean_phone) < 7:
@@ -1524,6 +1600,37 @@ def update_password():
     if current_pass == ADMIN_PASSWORD and new_pass: ADMIN_PASSWORD = new_pass
     return redirect(url_for('admin'))
 
+@app.route('/admin-add-gift', methods=['POST'])
+def admin_add_gift():
+    global gift_id_counter, gifts
+    title = request.form.get('title')
+    raw_price = request.form.get('price', '')
+    raw_old = request.form.get('old_price', '')
+    price = format_price(raw_price)
+    old_price, discount_percent = calculate_discount(raw_price, raw_old)
+    description = request.form.get('description', '').strip()
+    images_list = [process_and_compress_image(f) for f in request.files.getlist('images') if f and f.filename != '']
+    numeric_price = 0.0
+    try: numeric_price = float(re.sub(r'[^0-9.]', '', str(raw_price)))
+    except Exception: pass
+    if title:
+        gifts.insert(0, {"id": 10000 + gift_id_counter, "title": title, "price": price, "old_price": old_price, "discount_percent": discount_percent, "numeric_price": numeric_price, "description": description, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
+        gift_id_counter += 1
+    return redirect(url_for('admin'))
+
+@app.route('/delete-gift/<int:g_id>', methods=['POST'])
+def delete_gift(g_id):
+    global gifts
+    gifts = [g for g in gifts if g['id'] != g_id]
+    return redirect(url_for('admin'))
+
+@app.route('/toggle-sold-gift/<int:g_id>', methods=['POST'])
+def toggle_sold_gift(g_id):
+    global gifts
+    for g in gifts:
+        if g['id'] == g_id: g['is_sold'] = not g.get('is_sold', False)
+    return redirect(url_for('admin'))
+
 @app.route('/admin-add-auction', methods=['POST'])
 def admin_add_auction():
     global auction_id_counter, auctions
@@ -1533,17 +1640,13 @@ def admin_add_auction():
     raw_min = request.form.get('min_bid', '').strip()
     raw_max = request.form.get('max_price', '').strip()
     
-    try:
-        duration_hours = int(request.form.get('duration_hours', 48))
-    except ValueError:
-        duration_hours = 48
+    try: duration_hours = int(request.form.get('duration_hours', 48))
+    except ValueError: duration_hours = 48
         
     end_time = datetime.now() + timedelta(hours=duration_hours) + timedelta(hours=3)
-    
     current_price = format_price(raw_price)
     min_bid = format_price(raw_min)
     max_price = format_price(raw_max) if raw_max else ""
-    
     images_list = [process_and_compress_image(f) for f in request.files.getlist('auction_images') if f and f.filename != '']
     if title and current_price:
         auctions.insert(0, {"id": auction_id_counter, "title": title, "description": description, "current_price": current_price, "min_bid": min_bid, "max_price": max_price, "end_time": end_time.isoformat(), "images": [img for img in images_list if img], "bids": []})
@@ -1563,8 +1666,9 @@ def reviews_page():
 
 @app.route('/product/<int:p_id>')
 def product_detail(p_id):
-    global products
-    product = next((p for p in products if p['id'] == p_id), None)
+    global products, gifts
+    all_items = products + gifts
+    product = next((p for p in all_items if p['id'] == p_id), None)
     if not product: return redirect(url_for('index'))
     product['views'] = product.get('views', 0) + 1
     return render_template_string(product_detail_template, product=product, config=site_config, controls=site_controls, vis=text_visibility, error=None)
@@ -1622,7 +1726,9 @@ def add_product():
     if site_controls['block_posting']: return redirect(url_for('index'))
     title = request.form.get('title')
     raw_price = request.form.get('price', '')
+    raw_old = request.form.get('old_price', '')
     price = format_price(raw_price)
+    old_price, discount_percent = calculate_discount(raw_price, raw_old)
     quantity = request.form.get('quantity', '1').strip()
     description = request.form.get('description', '').strip()
     images_list = [process_and_compress_image(f) for f in request.files.getlist('images') if f and f.filename != '']
@@ -1630,7 +1736,7 @@ def add_product():
     try: numeric_price = float(re.sub(r'[^0-9.]', '', str(raw_price)))
     except Exception: pass
     if title:
-        products.insert(0, {"id": product_id_counter, "title": title, "price": price, "numeric_price": numeric_price, "quantity": quantity, "description": description, "contact_type": "phone", "contact_value": "", "images": [img for img in images_list if img], "is_sold": False, "views": 0})
+        products.insert(0, {"id": product_id_counter, "title": title, "price": price, "old_price": old_price, "discount_percent": discount_percent, "numeric_price": numeric_price, "quantity": quantity, "description": description, "contact_type": "phone", "contact_value": "", "images": [img for img in images_list if img], "is_sold": False, "views": 0})
         product_id_counter += 1
     return redirect(url_for('index'))
 
@@ -1639,7 +1745,9 @@ def admin_add_product():
     global product_id_counter
     title = request.form.get('title')
     raw_price = request.form.get('price', '')
+    raw_old = request.form.get('old_price', '')
     price = format_price(raw_price)
+    old_price, discount_percent = calculate_discount(raw_price, raw_old)
     quantity = request.form.get('quantity', '1').strip()
     description = request.form.get('description', '').strip()
     images_list = [process_and_compress_image(f) for f in request.files.getlist('images') if f and f.filename != '']
@@ -1647,7 +1755,7 @@ def admin_add_product():
     try: numeric_price = float(re.sub(r'[^0-9.]', '', str(raw_price)))
     except Exception: pass
     if title:
-        products.insert(0, {"id": product_id_counter, "title": title, "price": price, "numeric_price": numeric_price, "quantity": quantity, "description": description, "contact_type": "phone", "contact_value": "", "images": [img for img in images_list if img], "is_sold": False, "views": 0})
+        products.insert(0, {"id": product_id_counter, "title": title, "price": price, "old_price": old_price, "discount_percent": discount_percent, "numeric_price": numeric_price, "quantity": quantity, "description": description, "contact_type": "phone", "contact_value": "", "images": [img for img in images_list if img], "is_sold": False, "views": 0})
         product_id_counter += 1
     return redirect(url_for('admin'))
 
@@ -1658,20 +1766,16 @@ def update_logo():
     site_controls['enable_logo_pulse'] = True if request.form.get('enable_logo_pulse') else False
     
     anim_style = request.form.get('logo_animation_style')
-    if anim_style:
-        site_controls['logo_animation_style'] = anim_style
+    if anim_style: site_controls['logo_animation_style'] = anim_style
         
     speed = request.form.get('logo_speed') or request.form.get('logo_pulse_speed')
-    if speed:
-        site_controls['logo_pulse_speed'] = speed
+    if speed: site_controls['logo_pulse_speed'] = speed
         
     color = request.form.get('logo_pulse_color')
-    if color:
-        site_controls['logo_pulse_color'] = color
+    if color: site_controls['logo_pulse_color'] = color
         
     size = request.form.get('logo_size')
-    if size:
-        site_controls['logo_size'] = size
+    if size: site_controls['logo_size'] = size
 
     logo_file = request.files.get('logo_file')
     if logo_file and logo_file.filename != '':
@@ -1684,6 +1788,7 @@ def update_controls():
     global site_controls
     site_controls['enable_cart'] = True if request.form.get('enable_cart') == 'on' else False
     site_controls['enable_auctions'] = True if request.form.get('enable_auctions') == 'on' else False
+    site_controls['enable_gifts'] = True if request.form.get('enable_gifts') == 'on' else False
     site_controls['enable_scroll_top'] = True if request.form.get('enable_scroll_top') == 'on' else False
     site_controls['enable_forgot_pass'] = True if request.form.get('enable_forgot_pass') == 'on' else False
     site_controls['block_posting'] = True if request.form.get('block_posting') == 'on' else False
@@ -1741,7 +1846,7 @@ def admin():
     remaining_seconds = int(lockout_until - current_time) if is_locked else 0
     if request.method == 'POST':
         if is_locked:
-            return render_template_string(admin_template, products=products, auctions=auctions, notes=notes, reviews=reviews, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=False, error=True, is_locked=True, remaining_seconds=remaining_seconds, raw_template=current_html_template, color_names_ar=color_names_ar)
+            return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=False, error=True, is_locked=True, remaining_seconds=remaining_seconds, raw_template=current_html_template, color_names_ar=color_names_ar)
         if request.form.get('password') == ADMIN_PASSWORD:
             authorized = True
             login_attempts = 0
@@ -1754,7 +1859,7 @@ def admin():
                 remaining_seconds = 900
                 login_attempts = 0
     remaining_attempts = max(0, 5 - login_attempts)
-    return render_template_string(admin_template, products=products, auctions=auctions, notes=notes, reviews=reviews, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=authorized, error=error, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=remaining_attempts, raw_template=current_html_template, color_names_ar=color_names_ar)
+    return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, config=site_config, controls=site_controls, vis=text_visibility, stats=site_stats, authorized=authorized, error=error, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=remaining_attempts, raw_template=current_html_template, color_names_ar=color_names_ar)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
