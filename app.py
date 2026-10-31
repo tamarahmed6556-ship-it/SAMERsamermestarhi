@@ -135,7 +135,8 @@ text_visibility = {
     "bid_submit_btn": True,
     "sort_newest": True,
     "sort_price_low": True,
-    "sort_price_high": True
+    "sort_price_high": True,
+    "filter_gifts": True
 }
 
 site_config = {
@@ -174,7 +175,8 @@ site_config = {
         "bid_submit_btn": "تثبيت المزايدة 🚀",
         "sort_newest": "🕒 الأحدث",
         "sort_price_low": "💵 السعر: من الأقل للأعلى",
-        "sort_price_high": "📈 السعر: من الأعلى للأقل"
+        "sort_price_high": "📈 السعر: من الأعلى للأقل",
+        "filter_gifts": "🎁 عرض الهدايا فقط"
     },
     "colors": {
         "bg_color": "#000000",             
@@ -492,7 +494,6 @@ default_html_template = """
         .bid-btn { background: #d97706; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; text-align: center; text-decoration: none; display: block; }
 
         .products-section { width: 100%; max-width: 900px; margin-bottom: 20px; }
-        .gifts-section { width: 100%; max-width: 900px; margin-bottom: 30px; }
         .products-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; width: 100%; }
         @media (min-width: 768px) { .products-grid { grid-template-columns: repeat(4, 1fr); } }
         
@@ -586,11 +587,12 @@ default_html_template = """
     <div class="search-filter-bar">
         <input type="text" id="searchInput" class="search-input" placeholder="{{ config.texts.search_placeholder }}" onkeyup="filterAndSortProducts()">
         <div class="filter-dropdown-container">
-            <button type="button" class="filter-icon-btn" onclick="toggleFilterMenu()" title="ترتيب المنتجات">⌃</button>
+            <button type="button" class="filter-icon-btn" onclick="toggleFilterMenu()" title="ترتيب وعرض الأقسام">⌃</button>
             <div id="filterMenu" class="filter-content">
                 {% if vis.sort_newest %}<div onclick="selectSort('newest', '{{ config.texts.sort_newest }}')">{{ config.texts.sort_newest }}</div>{% endif %}
                 {% if vis.sort_price_low %}<div onclick="selectSort('price-low', '{{ config.texts.sort_price_low }}')">{{ config.texts.sort_price_low }}</div>{% endif %}
                 {% if vis.sort_price_high %}<div onclick="selectSort('price-high', '{{ config.texts.sort_price_high }}')">{{ config.texts.sort_price_high }}</div>{% endif %}
+                {% if controls.enable_gifts and vis.filter_gifts %}<div onclick="selectSort('gifts-only', '{{ config.texts.filter_gifts }}')" style="color: #ec4899; font-weight: bold;">{{ config.texts.filter_gifts }}</div>{% endif %}
             </div>
         </div>
         <input type="hidden" id="sortValue" value="newest">
@@ -630,49 +632,13 @@ default_html_template = """
     </div>
     {% endif %}
 
-    {% if controls.enable_gifts and gifts|length > 0 %}
-    <div class="gifts-section">
-        {% if vis.heading_gifts %}<h2 style="color: {{ config.colors.gifts_heading }}; margin-bottom: 15px; text-align: right;">{{ config.texts.heading_gifts }}</h2>{% endif %}
-        <div class="products-grid">
-            {% for g in gifts %}
-                <div class="product-card {% if g.is_sold %}sold-card{% endif %}">
-                    {% if g.is_sold %}<div class="sold-badge">تم البيع</div>{% endif %}
-                    {% if g.discount_percent %}<div class="discount-badge-card">خصم {{ g.discount_percent }}%</div>{% endif %}
-                    <div class="product-images">{% for img in g.images %}<img src="{{ img }}" alt="صورة الهدية">{% endfor %}</div>
-                    <div class="product-info">
-                        <div class="product-title" title="{{ g.title }}">{{ g.title }}</div>
-                        <div class="product-price-row">
-                            <div class="product-price">{{ g.price }}</div>
-                            {% if g.old_price %}<div class="old-price-card">{{ g.old_price }}</div>{% endif %}
-                        </div>
-                        <div class="card-buttons">
-                            {% if vis.view_details %}
-                                <div class="contact-btn-wrapper">
-                                    <a href="/product/{{ g.id }}" class="contact-btn {% if g.is_sold %}sold-btn-disabled{% endif %}">
-                                        {% if g.is_sold %}تم البيع{% else %}{{ config.texts.view_details }}{% endif %}
-                                    </a>
-                                    <button type="button" class="inline-share-btn {% if g.is_sold %}sold-btn-disabled{% endif %}" onclick="quickShareProduct('{{ g.title | replace("'", "\\'") }}', '{{ g.price }}', '/product/{{ g.id }}')" title="مشاركة الهدية">
-                                        <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
-                                    </button>
-                                </div>
-                            {% endif %}
-                            {% if controls.enable_cart and not g.is_sold %}
-                                <button type="button" class="add-to-cart-btn" onclick="addToCart({{ g.id }})">أضف إلى السلة 🛒</button>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
     <div class="products-section">
-        {% if vis.heading_products %}<h2 style="color: {{ config.colors.products_heading }}; margin-bottom: 15px; text-align: right;">{{ config.texts.heading_products }}</h2>{% endif %}
+        {% if vis.heading_products %}<h2 id="sectionHeading" style="color: {{ config.colors.products_heading }}; margin-bottom: 15px; text-align: right;">{{ config.texts.heading_products }}</h2>{% endif %}
         <div class="products-grid" id="productsGrid">
-            {% if products|length == 0 and vis.no_products %}<p style="color: {{ config.colors.no_products }}; text-align: center; grid-column: 1 / -1; padding: 20px;">{{ config.texts.no_products }}</p>{% endif %}
+            {% if products|length == 0 and gifts|length == 0 and vis.no_products %}<p style="color: {{ config.colors.no_products }}; text-align: center; grid-column: 1 / -1; padding: 20px;">{{ config.texts.no_products }}</p>{% endif %}
+            
             {% for p in page_products %}
-                <div class="product-card {% if p.is_sold %}sold-card{% endif %}" data-title="{{ p.title }}" data-price="{{ p.numeric_price }}" data-id="{{ p.id }}">
+                <div class="product-card regular-item {% if p.is_sold %}sold-card{% endif %}" data-title="{{ p.title }}" data-price="{{ p.numeric_price }}" data-id="{{ p.id }}" data-is-gift="false">
                     {% if p.is_sold %}<div class="sold-badge">تم البيع</div>{% endif %}
                     {% if p.discount_percent %}<div class="discount-badge-card">خصم {{ p.discount_percent }}%</div>{% endif %}
                     <div class="product-images">{% for img in p.images %}<img src="{{ img }}" alt="صورة">{% endfor %}</div>
@@ -700,6 +666,38 @@ default_html_template = """
                     </div>
                 </div>
             {% endfor %}
+
+            {% if controls.enable_gifts %}
+                {% for g in gifts %}
+                    <div class="product-card gift-item {% if g.is_sold %}sold-card{% endif %}" data-title="{{ g.title }}" data-price="{{ g.numeric_price }}" data-id="{{ g.id }}" data-is-gift="true" style="display: none;">
+                        {% if g.is_sold %}<div class="sold-badge">تم البيع</div>{% endif %}
+                        <div class="discount-badge-card" style="background: #ec4899;">هدية 🎁</div>
+                        <div class="product-images">{% for img in g.images %}<img src="{{ img }}" alt="صورة الهدية">{% endfor %}</div>
+                        <div class="product-info">
+                            <div class="product-title" title="{{ g.title }}">{{ g.title }}</div>
+                            <div class="product-price-row">
+                                <div class="product-price">{{ g.price }}</div>
+                                {% if g.old_price %}<div class="old-price-card">{{ g.old_price }}</div>{% endif %}
+                            </div>
+                            <div class="card-buttons">
+                                {% if vis.view_details %}
+                                    <div class="contact-btn-wrapper" style="background: #ec4899;">
+                                        <a href="/product/{{ g.id }}" class="contact-btn {% if g.is_sold %}sold-btn-disabled{% endif %}">
+                                            {% if g.is_sold %}تم البيع{% else %}{{ config.texts.view_details }}{% endif %}
+                                        </a>
+                                        <button type="button" class="inline-share-btn {% if g.is_sold %}sold-btn-disabled{% endif %}" onclick="quickShareProduct('{{ g.title | replace("'", "\\'") }}', '{{ g.price }}', '/product/{{ g.id }}')" title="مشاركة الهدية">
+                                            <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
+                                        </button>
+                                    </div>
+                                {% endif %}
+                                {% if controls.enable_cart and not g.is_sold %}
+                                    <button type="button" class="add-to-cart-btn" style="background: #ec4899;" onclick="addToCart({{ g.id }})">أضف إلى السلة 🛒</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
         </div>
         {% if total_pages > 1 %}
         <div class="pagination" id="paginationSection">
@@ -831,7 +829,22 @@ default_html_template = """
         }
 
         function toggleFilterMenu() { document.getElementById("filterMenu").classList.toggle("filter-show"); }
-        function selectSort(sortType, sortName) { document.getElementById("sortValue").value = sortType; document.getElementById("filterMenu").classList.remove("filter-show"); filterAndSortProducts(); }
+        function selectSort(sortType, sortName) { 
+            document.getElementById("sortValue").value = sortType; 
+            document.getElementById("filterMenu").classList.remove("filter-show"); 
+            
+            const heading = document.getElementById("sectionHeading");
+            if (heading) {
+                if (sortType === 'gifts-only') {
+                    heading.innerText = "{{ config.texts.heading_gifts }}";
+                    heading.style.color = "{{ config.colors.gifts_heading }}";
+                } else {
+                    heading.innerText = "{{ config.texts.heading_products }}";
+                    heading.style.color = "{{ config.colors.products_heading }}";
+                }
+            }
+            filterAndSortProducts(); 
+        }
         window.addEventListener('click', function(e) {
             if (!e.target.closest('.filter-dropdown-container')) {
                 var menu = document.getElementById("filterMenu");
@@ -900,13 +913,28 @@ default_html_template = """
             if(!grid) return;
             const filter = searchInput ? searchInput.value.toLowerCase() : '';
             const sortVal = sortInput ? sortInput.value : 'newest';
-            const cards = Array.from(grid.getElementsByClassName('product-card'));
+            
+            const regularCards = Array.from(grid.getElementsByClassName('regular-item'));
+            const giftCards = Array.from(grid.getElementsByClassName('gift-item'));
+
+            if (sortVal === 'gifts-only') {
+                regularCards.forEach(card => card.style.display = 'none');
+                giftCards.forEach(card => {
+                    const title = card.getAttribute('data-title').toLowerCase();
+                    card.style.display = title.includes(filter) ? "" : "none";
+                });
+                if (pagination) pagination.style.display = 'none';
+                return;
+            } else {
+                giftCards.forEach(card => card.style.display = 'none');
+            }
+
             if (pagination) { pagination.style.display = (filter !== '' || sortVal !== 'newest') ? 'none' : 'flex'; }
-            cards.forEach(card => {
+            regularCards.forEach(card => {
                 const title = card.getAttribute('data-title').toLowerCase();
                 card.style.display = title.includes(filter) ? "" : "none";
             });
-            cards.sort((a, b) => {
+            regularCards.sort((a, b) => {
                 const priceA = parseFloat(a.getAttribute('data-price')) || 0;
                 const priceB = parseFloat(b.getAttribute('data-price')) || 0;
                 const idA = parseInt(a.getAttribute('data-id')) || 0;
@@ -915,7 +943,7 @@ default_html_template = """
                 else if (sortVal === 'price-high') { return priceB - priceA; }
                 else { return idB - idA; }
             });
-            cards.forEach(card => grid.appendChild(card));
+            regularCards.forEach(card => grid.appendChild(card));
         }
     </script>
 </body>
@@ -1192,7 +1220,7 @@ admin_template = """
                 <form action="/update-controls" method="POST">
                     <label class="checkbox-label"><input type="checkbox" name="enable_cart" {% if controls.enable_cart %}checked{% endif %}> تفعيل سلة المشتريات وزر "أضف إلى السلة"</label>
                     <label class="checkbox-label"><input type="checkbox" name="enable_auctions" {% if controls.enable_auctions %}checked{% endif %}> تفعيل قسم المزادات</label>
-                    <label class="checkbox-label"><input type="checkbox" name="enable_gifts" {% if controls.enable_gifts %}checked{% endif %}> تفعيل قسم الهدايا في الصفحة الرئيسية 🎁</label>
+                    <label class="checkbox-label"><input type="checkbox" name="enable_gifts" {% if controls.enable_gifts %}checked{% endif %}> تفعيل خيار قسم الهدايا في قائمة البحث والفلترة 🎁</label>
                     <label class="checkbox-label"><input type="checkbox" name="enable_scroll_top" {% if controls.enable_scroll_top %}checked{% endif %}> تفعيل زر "العودة إلى الأعلى" في المتجر</label>
                     <label class="checkbox-label"><input type="checkbox" name="enable_forgot_pass" {% if controls.enable_forgot_pass %}checked{% endif %}> تفعيل زر "نسيت كلمة السر" في صفحة الدخول</label>
                     <label class="checkbox-label"><input type="checkbox" name="block_posting" {% if controls.block_posting %}checked{% endif %}> منع المستخدمين من الإضافة</label>
