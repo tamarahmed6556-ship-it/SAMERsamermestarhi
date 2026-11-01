@@ -8,17 +8,59 @@ import urllib.parse
 import re
 import json
 import time
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
 app.secret_key = 'samemomomo_secret_key'
+
+# الاتصال بقاعدة البيانات الدائمة على Neon
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+def get_db_connection():
+    if not DATABASE_URL:
+        raise Exception("DATABASE_URL variable is missing in Render environment variables!")
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    return conn
+
+def init_db():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS products (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                category VARCHAR(100),
+                condition VARCHAR(100),
+                price VARCHAR(100),
+                old_price VARCHAR(100),
+                discount_percent INT,
+                raw_old_price VARCHAR(100),
+                numeric_price NUMERIC(10, 2),
+                quantity VARCHAR(50),
+                description TEXT,
+                is_featured BOOLEAN DEFAULT FALSE,
+                images TEXT[],
+                is_sold BOOLEAN DEFAULT FALSE,
+                views INT DEFAULT 0
+            );
+        ''')
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Database init error: {e}")
+
+# تهيئة جدول المنتجات عند بدء التشغيل
+init_db()
 
 @app.before_request
 def make_session_permanent():
     session.permanent = True
     app.permanent_session_lifetime = timedelta(days=1)
 
-# ملفات الحفظ الدائم (Persistent Storage Files)
-PRODUCTS_FILE = "persistent_products.json"
+# ملفات الحفظ الدائم الأخرى
 GIFTS_FILE = "persistent_gifts.json"
 SETTINGS_FILE = "persistent_settings.json"
 CONTROLS_FILE = "persistent_controls.json"
@@ -47,8 +89,19 @@ def save_json_file(filename, data):
     except Exception:
         pass
 
-# تحميل البيانات المحفوظة دائمياً
-products = load_json_file(PRODUCTS_FILE, [])
+def get_all_products():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute('SELECT * FROM products ORDER BY id DESC;')
+        prods = cur.fetchall()
+        cur.close()
+        conn.close()
+        return [dict(p) for p in prods]
+    except Exception as e:
+        print(f"Error fetching products: {e}")
+        return []
+
 gifts = load_json_file(GIFTS_FILE, [])
 auctions = load_json_file(AUCTIONS_FILE, [])
 notes = load_json_file(NOTES_FILE, [])
@@ -58,10 +111,8 @@ reviews = load_json_file(REVIEWS_FILE, [
 ])
 
 categories_list = load_json_file(CATS_FILE, ["ديكور منزلي", "شمعدانات ومزهريات", "كتب ومقتنيات"])
-
 site_stats = load_json_file(STATS_FILE, {"total_visits": 0})
 
-product_id_counter = len(products) + len(gifts) + 1
 gift_id_counter = len(gifts) + 1
 auction_id_counter = len(auctions) + 1
 note_id_counter = len(notes) + 1
@@ -196,7 +247,6 @@ color_names_ar = {
 }
 
 def save_all_states():
-    save_json_file(PRODUCTS_FILE, products)
     save_json_file(GIFTS_FILE, gifts)
     save_json_file(SETTINGS_FILE, site_config)
     save_json_file(CONTROLS_FILE, site_controls)
@@ -219,7 +269,7 @@ def format_price(raw_price):
         return f"{numbers_only} {curr}"
     return clean_val
 
-# قوالب HTML (نفس تصميمك الأنيق والمحدث)
+# قوالب HTML الخاصة بك كاملة
 product_detail_template = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -1640,7 +1690,6 @@ admin_template = """
 """
 
 current_html_template = load_json_file(CODE_FILE, default_html_template)
-
 def process_and_compress_image(image_file):
     try:
         img = Image.open(image_file)
@@ -1672,6 +1721,8 @@ def index():
     global current_html_template, site_stats
     site_stats['total_visits'] += 1
     save_json_file(STATS_FILE, site_stats)
+    
+    products = get_all_products()
     cart = get_cart()
     per_page = 30
     try: page = int(request.args.get('page', 1))
@@ -1724,6 +1775,7 @@ def cart_page():
 
 @app.route('/add-to-cart-ajax/<int:p_id>', methods=['POST'])
 def add_to_cart_ajax(p_id):
+    products = get_all_products()
     all_items = products + gifts
     product = next((p for p in all_items if p['id'] == p_id), None)
     if product and not product.get('is_sold', False):
@@ -1808,6 +1860,7 @@ def buy_product(p_id):
     province = request.form.get('province', '').strip()
     street = request.form.get('street', '').strip()
     phone = request.form.get('phone', '').strip()
+    products = get_all_products()
     all_items = products + gifts
     product = next((p for p in all_items if p['id'] == p_id), None)
     if not product: return redirect(url_for('index'))
@@ -1920,32 +1973,52 @@ def update_gift_discount(g_id):
 
 @app.route('/update-product-details/<int:p_id>', methods=['POST'])
 def update_product_details(p_id):
-    global products
     raw_new = request.form.get('new_price', '').strip()
     raw_old = request.form.get('old_price', '').strip()
     category = request.form.get('category', '').strip()
     condition = request.form.get('condition', '').strip()
-    for p in products:
-        if p['id'] == p_id:
-            if raw_new:
-                p['price'] = format_price(raw_new)
-                try: p['numeric_price'] = float(re.sub(r'[^0-9.]', '', str(raw_new)))
-                except Exception: pass
-            old_price, discount_percent = calculate_discount(raw_new, raw_old)
-            p['old_price'] = old_price
-            p['discount_percent'] = discount_percent
-            p['raw_old_price'] = raw_old
-            if category: p['category'] = category
-            p['condition'] = condition
-    save_json_file(PRODUCTS_FILE, products)
+    
+    price = format_price(raw_new) if raw_new else None
+    old_price, discount_percent = calculate_discount(raw_new, raw_old) if raw_new else (None, None)
+    numeric_price = None
+    if raw_new:
+        try: numeric_price = float(re.sub(r'[^0-9.]', '', str(raw_new)))
+        except Exception: pass
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        if raw_new:
+            cur.execute('''
+                UPDATE products 
+                SET price = %s, old_price = %s, discount_percent = %s, raw_old_price = %s, numeric_price = %s, category = %s, condition = %s
+                WHERE id = %s;
+            ''', (price, old_price, discount_percent, raw_old, numeric_price, category, condition, p_id))
+        else:
+            cur.execute('''
+                UPDATE products 
+                SET category = %s, condition = %s
+                WHERE id = %s;
+            ''', (category, condition, p_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error updating product: {e}")
+        
     return redirect(url_for('admin'))
 
 @app.route('/toggle-featured/<int:p_id>', methods=['POST'])
 def toggle_featured(p_id):
-    global products
-    for p in products:
-        if p['id'] == p_id: p['is_featured'] = not p.get('is_featured', False)
-    save_json_file(PRODUCTS_FILE, products)
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('UPDATE products SET is_featured = NOT is_featured WHERE id = %s;', (p_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error toggling featured: {e}")
     return redirect(url_for('admin'))
 
 @app.route('/admin-add-auction', methods=['POST'])
@@ -1985,13 +2058,21 @@ def reviews_page():
 
 @app.route('/product/<int:p_id>')
 def product_detail(p_id):
-    global products, gifts
+    products = get_all_products()
     all_items = products + gifts
     product = next((p for p in all_items if p['id'] == p_id), None)
     if not product: return redirect(url_for('index'))
-    product['views'] = product.get('views', 0) + 1
-    save_json_file(PRODUCTS_FILE, products)
-    save_json_file(GIFTS_FILE, gifts)
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('UPDATE products SET views = views + 1 WHERE id = %s;', (p_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception:
+        pass
+        
     return render_template_string(product_detail_template, product=product, config=site_config, controls=site_controls, vis=text_visibility, error=None)
 
 @app.route('/copyright')
@@ -2048,31 +2129,11 @@ def delete_note(n_id):
     return redirect(url_for('admin'))
 
 @app.route('/add', methods=['POST'])
-def add_product():
-    global product_id_counter, products
-    if site_controls['block_posting']: return redirect(url_for('index'))
-    title = request.form.get('title')
-    category = request.form.get('category', categories_list[0] if categories_list else "عام").strip()
-    condition = request.form.get('condition', '').strip()
-    raw_price = request.form.get('price', '')
-    raw_old = request.form.get('old_price', '')
-    price = format_price(raw_price)
-    old_price, discount_percent = calculate_discount(raw_price, raw_old)
-    quantity = request.form.get('quantity', '1').strip()
-    description = request.form.get('description', '').strip()
-    images_list = [process_and_compress_image(f) for f in request.files.getlist('images') if f and f.filename != '']
-    numeric_price = 0.0
-    try: numeric_price = float(re.sub(r'[^0-9.]', '', str(raw_price)))
-    except Exception: pass
-    if title:
-        products.insert(0, {"id": product_id_counter, "title": title, "category": category, "condition": condition, "price": price, "old_price": old_price, "discount_percent": discount_percent, "raw_old_price": raw_old, "numeric_price": numeric_price, "quantity": quantity, "description": description, "is_featured": False, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
-        product_id_counter += 1
-        save_json_file(PRODUCTS_FILE, products)
-    return redirect(url_for('index'))
-
 @app.route('/admin-add-product', methods=['POST'])
-def admin_add_product():
-    global product_id_counter, products
+def add_product():
+    if site_controls['block_posting'] and request.path == '/add': 
+        return redirect(url_for('index'))
+        
     title = request.form.get('title')
     category = request.form.get('category', categories_list[0] if categories_list else "عام").strip()
     condition = request.form.get('condition', '').strip()
@@ -2087,11 +2148,22 @@ def admin_add_product():
     numeric_price = 0.0
     try: numeric_price = float(re.sub(r'[^0-9.]', '', str(raw_price)))
     except Exception: pass
+    
     if title:
-        products.insert(0, {"id": product_id_counter, "title": title, "category": category, "condition": condition, "price": price, "old_price": old_price, "discount_percent": discount_percent, "raw_old_price": raw_old, "numeric_price": numeric_price, "quantity": quantity, "description": description, "is_featured": is_featured, "images": [img for img in images_list if img], "is_sold": False, "views": 0})
-        product_id_counter += 1
-        save_json_file(PRODUCTS_FILE, products)
-    return redirect(url_for('admin'))
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute('''
+                INSERT INTO products (title, category, condition, price, old_price, discount_percent, raw_old_price, numeric_price, quantity, description, is_featured, images, is_sold, views)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+            ''', (title, category, condition, price, old_price, discount_percent, raw_old, numeric_price, quantity, description, is_featured, [img for img in images_list if img], False, 0))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error adding product: {e}")
+            
+    return redirect(url_for('index' if request.path == '/add' else 'admin'))
 
 @app.route('/update-logo', methods=['POST'])
 def update_logo():
@@ -2175,17 +2247,28 @@ def update_config():
 
 @app.route('/delete/<int:p_id>', methods=['POST'])
 def delete_product(p_id):
-    global products
-    products = [p for p in products if p['id'] != p_id]
-    save_json_file(PRODUCTS_FILE, products)
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('DELETE FROM products WHERE id = %s;', (p_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error deleting product: {e}")
     return redirect(url_for('admin'))
 
 @app.route('/toggle-sold/<int:p_id>', methods=['POST'])
 def toggle_sold(p_id):
-    global products
-    for p in products:
-        if p['id'] == p_id: p['is_sold'] = not p.get('is_sold', False)
-    save_json_file(PRODUCTS_FILE, products)
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('UPDATE products SET is_sold = NOT is_sold WHERE id = %s;', (p_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error toggling sold: {e}")
     return redirect(url_for('admin'))
 
 @app.route('/admin', methods=['GET', 'POST'])
@@ -2194,6 +2277,8 @@ def admin():
     current_time = time.time()
     is_locked = current_time < lockout_until
     remaining_seconds = int(lockout_until - current_time) if is_locked else 0
+    
+    products = get_all_products()
     
     if request.method == 'POST':
         if 'password' in request.form:
