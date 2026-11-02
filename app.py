@@ -22,50 +22,38 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# ==========================================
-# نماذج قواعد البيانات لنظام المتاجر المتعددة (Multi-Tenancy)
-# ==========================================
 class Store(db.Model):
     __tablename__ = 'stores'
-    
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)                    # اسم المتجر
-    subdomain = db.Column(db.String(50), unique=True, nullable=False)   # الرابط الفرعي أو المعرف (مثلاً: default أو store2)
-    admin_password = db.Column(db.String(200), nullable=False)          # كلمة مرور لوحة التحكم الخاصة به
-    
-    # حزم الاشتراك والإيقاف التلقائي
-    subscription_status = db.Column(db.String(20), default='active')    # active أو suspended
-    subscription_expiry = db.Column(db.DateTime, nullable=False)        # تاريخ انتهاء الاشتراك
+    name = db.Column(db.String(100), nullable=False)
+    subdomain = db.Column(db.String(50), unique=True, nullable=False)
+    admin_password = db.Column(db.String(200), nullable=False)
+    subscription_status = db.Column(db.String(20), default='active')
+    subscription_expiry = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # علاقات لربط المتجر ببياناته
     settings = db.relationship('StoreSettings', backref='store', uselist=False, cascade="all, delete-orphan")
     products = db.relationship('Product', backref='store', cascade="all, delete-orphan")
     categories = db.relationship('Category', backref='store', cascade="all, delete-orphan")
 
 class StoreSettings(db.Model):
     __tablename__ = 'store_settings'
-    
     id = db.Column(db.Integer, primary_key=True)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.id'), nullable=False)
-    
-    # إعدادات التصميم والمظهر والعملة
-    bg_color = db.Column(db.String(20), default='#000000')      # لون الخلفية
-    text_color = db.Column(db.String(20), default='#FFFFFF')    # لون النصوص
-    currency = db.Column(db.String(10), default='د.أ')          # العملة
-    about_text = db.Column(db.Text, default='مرحباً بك في متجري...') # نص صفحة من نحن
-    logo_url = db.Column(db.String(255), nullable=True)         # رابط اللوجو الخاص به
+    bg_color = db.Column(db.String(20), default='#000000')
+    text_color = db.Column(db.String(20), default='#FFFFFF')
+    currency = db.Column(db.String(10), default='د.أ')
+    about_text = db.Column(db.Text, default='مرحباً بك في متجري...')
+    logo_url = db.Column(db.String(255), nullable=True)
 
 class Category(db.Model):
     __tablename__ = 'categories'
-    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.id'), nullable=False)
 
 class Product(db.Model):
     __tablename__ = 'products'
-    
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
     category = db.Column(db.String(100))
@@ -87,7 +75,6 @@ def init_db():
     try:
         with app.app_context():
             db.create_all()
-            # إنشاء متجر افتراضي أول (default) تلقائياً إذا لم يكن موجوداً
             default_store = Store.query.filter_by(subdomain='default').first()
             if not default_store:
                 default_store = Store(name="عتيق | Atiq", subdomain="default", admin_password="samemomomo**1", subscription_status="active", subscription_expiry=datetime.utcnow() + timedelta(days=365))
@@ -106,18 +93,21 @@ def make_session_permanent():
     session.permanent = True
     app.permanent_session_lifetime = timedelta(days=1)
 
-# ==========================================
-# دالة الوسيط (Middleware) لتحديد المتجر (يدعم ?store=name والـ Subdomain)
-# ==========================================
+# دالة فحص المتجر المحدثة لدعم المسارات مثل /salla
 @app.before_request
 def detect_store():
     if request.endpoint == 'ping' or request.path.startswith('/static/'):
         return
 
-    # 1. البحث عبر الرابط المباشر (مثل ?store=store2)
-    store_slug = request.args.get('store')
-    
-    # 2. إذا لم يوجد، البحث عبر الـ Subdomain
+    store_slug = None
+    path_parts = [p for p in request.path.split('/') if p]
+
+    if len(path_parts) > 0 and path_parts[0] not in ['admin', 'about-us', 'cart', 'reviews', 'copyright', 'add', 'auction', 'buy-product', 'add-to-cart-ajax', 'remove-from-cart', 'bid', 'update-about-us', 'add-category', 'delete-category', 'auction', 'update-admin-whatsapp', 'update-currency', 'update-cod-settings', 'update-marquee', 'update-password', 'admin-add-gift', 'delete-gift', 'toggle-sold-gift', 'update-gift-discount', 'update-product-details', 'toggle-featured', 'admin-add-auction', 'delete-auction', 'product', 'update-code', 'add-review', 'delete-review', 'add-note', 'delete-note', 'admin-add-product', 'update-logo', 'update-controls', 'update-texts', 'update-config', 'delete', 'toggle-sold']:
+        store_slug = path_parts[0]
+
+    if not store_slug:
+        store_slug = request.args.get('store')
+
     if not store_slug:
         host = request.host
         parts = host.split('.')
@@ -139,7 +129,6 @@ def detect_store():
     g.store = store
     g.settings = store.settings
 
-# ملفات الحفظ الدائم الأخرى
 GIFTS_FILE = "persistent_gifts.json"
 SETTINGS_FILE = "persistent_settings.json"
 CONTROLS_FILE = "persistent_controls.json"
@@ -327,17 +316,6 @@ color_names_ar = {
     "filter_btn_bg": "لون خلفية زر الفلترة ⌃", "filter_btn_text": "لون أيقونة ونصوص زر الفلترة"
 }
 
-def save_all_states():
-    save_json_file(GIFTS_FILE, gifts)
-    save_json_file(SETTINGS_FILE, site_config)
-    save_json_file(CONTROLS_FILE, site_controls)
-    save_json_file(VIS_FILE, text_visibility)
-    save_json_file(CATS_FILE, categories_list)
-    save_json_file(AUCTIONS_FILE, auctions)
-    save_json_file(REVIEWS_FILE, reviews)
-    save_json_file(NOTES_FILE, notes)
-    save_json_file(STATS_FILE, site_stats)
-
 def format_price(raw_price):
     if not raw_price:
         return ""
@@ -352,7 +330,6 @@ def format_price(raw_price):
         return f"{numbers_only} {curr}"
     return clean_val
 
-# قوالب HTML (قالب عرض تفاصيل المنتج)
 product_detail_template = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -1830,6 +1807,15 @@ def index():
         cats=categories_list, cart_count=len(cart), error=None
     )
 
+@app.route('/<path:subpath>')
+def store_path_router(subpath):
+    parts = [p for p in subpath.split('/') if p]
+    if not parts:
+        return index()
+    
+    # إذا كانت الصفحة تخص متجراً وتم تفعيل الـ before_request، سيتم توجيهها بسلاسة
+    return index()
+
 @app.route('/about-us')
 def about_us_page():
     return render_template_string(about_us_template, about_text=about_us_content, config=site_config)
@@ -2080,7 +2066,7 @@ def update_product_details(p_id):
         except Exception: pass
 
     try:
-        conn = get_db_connection()
+        conn = get_db_connection() if 'get_db_connection' in globals() else psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cur = conn.cursor()
         if raw_new:
             cur.execute('''
@@ -2105,7 +2091,7 @@ def update_product_details(p_id):
 @app.route('/toggle-featured/<int:p_id>', methods=['POST'])
 def toggle_featured(p_id):
     try:
-        conn = get_db_connection()
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cur = conn.cursor()
         cur.execute('UPDATE products SET is_featured = NOT is_featured WHERE id = %s;', (p_id,))
         conn.commit()
@@ -2158,7 +2144,7 @@ def product_detail(p_id):
     if not product: return redirect(url_for('index'))
     
     try:
-        conn = get_db_connection()
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cur = conn.cursor()
         cur.execute('UPDATE products SET views = views + 1 WHERE id = %s;', (p_id,))
         conn.commit()
@@ -2245,7 +2231,7 @@ def add_product():
     
     if title:
         try:
-            conn = get_db_connection()
+            conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
             cur = conn.cursor()
             store_id = g.store.id if hasattr(g, 'store') and g.store else 1
             cur.execute('''
@@ -2343,7 +2329,7 @@ def update_config():
 @app.route('/delete/<int:p_id>', methods=['POST'])
 def delete_product(p_id):
     try:
-        conn = get_db_connection()
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cur = conn.cursor()
         cur.execute('DELETE FROM products WHERE id = %s;', (p_id,))
         conn.commit()
@@ -2356,7 +2342,7 @@ def delete_product(p_id):
 @app.route('/toggle-sold/<int:p_id>', methods=['POST'])
 def toggle_sold(p_id):
     try:
-        conn = get_db_connection()
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cur = conn.cursor()
         cur.execute('UPDATE products SET is_sold = NOT is_sold WHERE id = %s;', (p_id,))
         conn.commit()
