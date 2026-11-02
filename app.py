@@ -2299,6 +2299,9 @@ def admin():
                 
     authorized = session.get('admin_logged', False)
     return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, cats=categories_list, stats=site_stats, authorized=authorized, error=False, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
+@app.route('/ping')
+def ping():
+    return "OK", 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
