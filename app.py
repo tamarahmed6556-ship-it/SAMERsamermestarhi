@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template_string, request, redirect, url_for, session, jsonify, g
 import os
 import base64
 from io import BytesIO
@@ -10,49 +10,86 @@ import json
 import time
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.secret_key = 'samemomomo_secret_key'
 
 # الاتصال بقاعدة البيانات الدائمة على Neon
 DATABASE_URL = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-def get_db_connection():
-    if not DATABASE_URL:
-        raise Exception("DATABASE_URL variable is missing in Render environment variables!")
-    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-    return conn
+db = SQLAlchemy(app)
+
+# ==========================================
+# نماذج قواعد البيانات لنظام المتاجر المتعددة (Multi-Tenancy)
+# ==========================================
+class Store(db.Model):
+    __tablename__ = 'stores'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)                    # اسم المتجر
+    subdomain = db.Column(db.String(50), unique=True, nullable=False)   # الرابط الفرعي (مثلاً: ahmad)
+    admin_password = db.Column(db.String(200), nullable=False)          # كلمة مرور لوحة التحكم الخاصة به
+    
+    # حزم الاشتراك والإيقاف التلقائي
+    subscription_status = db.Column(db.String(20), default='active')    # active أو suspended
+    subscription_expiry = db.Column(db.DateTime, nullable=False)        # تاريخ انتهاء الاشتراك
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # علاقات لربط المتجر ببياناته
+    settings = db.relationship('StoreSettings', backref='store', uselist=False, cascade="all, delete-orphan")
+    products = db.relationship('Product', backref='store', cascade="all, delete-orphan")
+    categories = db.relationship('Category', backref='store', cascade="all, delete-orphan")
+
+class StoreSettings(db.Model):
+    __tablename__ = 'store_settings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    store_id = db.Column(db.Integer, db.ForeignKey('stores.id'), nullable=False)
+    
+    # إعدادات التصميم والمظهر والعملة
+    bg_color = db.Column(db.String(20), default='#000000')      # لون الخلفية
+    text_color = db.Column(db.String(20), default='#FFFFFF')    # لون النصوص
+    currency = db.Column(db.String(10), default='د.أ')          # العملة
+    about_text = db.Column(db.Text, default='مرحباً بك في متجري...') # نص صفحة من نحن
+    logo_url = db.Column(db.String(255), nullable=True)         # رابط اللوجو الخاص به
+
+class Category(db.Model):
+    __tablename__ = 'categories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    store_id = db.Column(db.Integer, db.ForeignKey('stores.id'), nullable=False)
+
+class Product(db.Model):
+    __tablename__ = 'products'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    category = db.Column(db.String(100))
+    condition = db.Column(db.String(100))
+    price = db.Column(db.String(100))
+    old_price = db.Column(db.String(100))
+    discount_percent = db.Column(db.Integer)
+    raw_old_price = db.Column(db.String(100))
+    numeric_price = db.Column(db.Numeric(10, 2))
+    quantity = db.Column(db.String(50))
+    description = db.Column(db.Text)
+    is_featured = db.Column(db.Boolean, default=False)
+    images = db.Column(db.ARRAY(db.Text))
+    is_sold = db.Column(db.Boolean, default=False)
+    views = db.Column(db.Integer, default=0)
+    store_id = db.Column(db.Integer, db.ForeignKey('stores.id'), nullable=False)
 
 def init_db():
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS products (
-                id SERIAL PRIMARY KEY,
-                title VARCHAR(255) NOT NULL,
-                category VARCHAR(100),
-                condition VARCHAR(100),
-                price VARCHAR(100),
-                old_price VARCHAR(100),
-                discount_percent INT,
-                raw_old_price VARCHAR(100),
-                numeric_price NUMERIC(10, 2),
-                quantity VARCHAR(50),
-                description TEXT,
-                is_featured BOOLEAN DEFAULT FALSE,
-                images TEXT[],
-                is_sold BOOLEAN DEFAULT FALSE,
-                views INT DEFAULT 0
-            );
-        ''')
-        conn.commit()
-        cur.close()
-        conn.close()
+        with app.app_context():
+            db.create_all()
     except Exception as e:
         print(f"Database init error: {e}")
 
-# تهيئة جدول المنتجات عند بدء التشغيل
 init_db()
 
 @app.before_request
@@ -60,11 +97,50 @@ def make_session_permanent():
     session.permanent = True
     app.permanent_session_lifetime = timedelta(days=1)
 
+# ==========================================
+# دالة الوسيط (Middleware) لتحديد المتجر المعزول تلقائياً من الرابط (Subdomain)
+# ==========================================
+@app.before_request
+def detect_store():
+    if request.endpoint == 'ping' or request.path.startswith('/static/'):
+        return
+
+    host = request.host
+    parts = host.split('.')
+    
+    if len(parts) > 2:
+        subdomain = parts[0]
+    else:
+        subdomain = 'default'
+
+    store = Store.query.filter_by(subdomain=subdomain).first()
+    
+    if not store:
+        store = Store.query.first()
+        if not store:
+            # إنشاء متجر افتراضي تلقائياً لكي لا يتوقف السيرفر عند أول تشغيل
+            try:
+                default_store = Store(name="متجر عتيق الافتراضي", subdomain="default", admin_password="samemomomo**1", subscription_status="active", subscription_expiry=datetime.utcnow() + timedelta(days=365))
+                db.session.add(default_store)
+                db.session.commit()
+                default_settings = StoreSettings(store_id=default_store.id)
+                db.session.add(default_settings)
+                db.session.commit()
+                store = default_store
+            except Exception as e:
+                print(f"Error creating default store: {e}")
+                return "المتجر غير موجود", 404
+
+    if store.subscription_status != 'active':
+        return render_template_string("<h1>هذا المتجر متوقف مؤقتاً لعدم تجديد الاشتراك. يرجى التواصل مع الإدارة.</h1>", store=store), 403
+
+    g.store = store
+    g.settings = store.settings
+
 # ملفات الحفظ الدائم الأخرى
 GIFTS_FILE = "persistent_gifts.json"
 SETTINGS_FILE = "persistent_settings.json"
 CONTROLS_FILE = "persistent_controls.json"
-TEXTS_FILE = "persistent_texts.json"
 VIS_FILE = "persistent_vis.json"
 CATS_FILE = "persistent_cats.json"
 AUCTIONS_FILE = "persistent_auctions.json"
@@ -91,17 +167,20 @@ def save_json_file(filename, data):
 
 def get_all_products():
     try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute('SELECT * FROM products ORDER BY id DESC;')
-        prods = cur.fetchall()
-        cur.close()
-        conn.close()
-        return [dict(p) for p in prods]
+        if hasattr(g, 'store') and g.store:
+            prods = Product.query.filter_by(store_id=g.store.id).order_by(Product.id.desc()).all()
+        else:
+            prods = Product.query.order_by(Product.id.desc()).all()
+        return [dict(
+            id=p.id, title=p.title, category=p.category, condition=p.condition,
+            price=p.price, old_price=p.old_price, discount_percent=p.discount_percent,
+            raw_old_price=p.raw_old_price, numeric_price=float(p.numeric_price) if p.numeric_price else 0,
+            quantity=p.quantity, description=p.description, is_featured=p.is_featured,
+            images=p.images, is_sold=p.is_sold, views=p.views
+        ) for p in prods]
     except Exception as e:
         print(f"Error fetching products: {e}")
         return []
-
 gifts = load_json_file(GIFTS_FILE, [])
 auctions = load_json_file(AUCTIONS_FILE, [])
 notes = load_json_file(NOTES_FILE, [])
@@ -262,6 +341,8 @@ def format_price(raw_price):
         return ""
     clean_val = str(raw_price).strip()
     curr = site_controls.get("currency_symbol", "د.أ")
+    if hasattr(g, 'settings') and g.settings and g.settings.currency:
+        curr = g.settings.currency
     if curr in clean_val:
         return clean_val
     numbers_only = re.sub(r'[^0-9.]', '', clean_val)
@@ -269,7 +350,7 @@ def format_price(raw_price):
         return f"{numbers_only} {curr}"
     return clean_val
 
-# قوالب HTML الخاصة بك كاملة
+# تعريف القوالب (Templates)
 product_detail_template = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -1734,7 +1815,18 @@ def index():
     start_idx = (page - 1) * per_page
     end_idx = start_idx + per_page
     page_products = products[start_idx:end_idx]
-    return render_template_string(current_html_template, products=products, page_products=page_products, gifts=gifts, current_page=page, total_pages=total_pages, auctions=auctions, config=site_config, controls=site_controls, vis=text_visibility, cats=categories_list, cart_count=len(cart), error=None)
+    
+    current_config = site_config.copy()
+    if hasattr(g, 'settings') and g.settings:
+        current_config['colors']['bg_color'] = g.settings.bg_color
+        current_config['colors']['product_title'] = g.settings.text_color
+
+    return render_template_string(
+        current_html_template, products=products, page_products=page_products, 
+        gifts=gifts, current_page=page, total_pages=total_pages, auctions=auctions, 
+        config=current_config, controls=site_controls, vis=text_visibility, 
+        cats=categories_list, cart_count=len(cart), error=None
+    )
 
 @app.route('/about-us')
 def about_us_page():
@@ -2153,10 +2245,12 @@ def add_product():
         try:
             conn = get_db_connection()
             cur = conn.cursor()
+            # ربط المنتج بمعرف المتجر الحالي g.store.id تلقائياً
+            store_id = g.store.id if hasattr(g, 'store') and g.store else 1
             cur.execute('''
-                INSERT INTO products (title, category, condition, price, old_price, discount_percent, raw_old_price, numeric_price, quantity, description, is_featured, images, is_sold, views)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            ''', (title, category, condition, price, old_price, discount_percent, raw_old, numeric_price, quantity, description, is_featured, [img for img in images_list if img], False, 0))
+                INSERT INTO products (title, category, condition, price, old_price, discount_percent, raw_old_price, numeric_price, quantity, description, is_featured, images, is_sold, views, store_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+            ''', (title, category, condition, price, old_price, discount_percent, raw_old, numeric_price, quantity, description, is_featured, [img for img in images_list if img], False, 0, store_id))
             conn.commit()
             cur.close()
             conn.close()
@@ -2280,11 +2374,14 @@ def admin():
     
     products = get_all_products()
     
+    # دعم التحقق من كلمة مرور المتجر الخاص الحالي أو العام
+    store_password = g.store.admin_password if hasattr(g, 'store') and g.store and g.store.admin_password else ADMIN_PASSWORD
+
     if request.method == 'POST':
         if 'password' in request.form:
             if is_locked:
                 return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, cats=categories_list, stats=site_stats, authorized=False, error=True, is_locked=True, remaining_seconds=remaining_seconds, raw_template=current_html_template, color_names_ar=color_names_ar)
-            if request.form.get('password') == ADMIN_PASSWORD:
+            if request.form.get('password') == store_password:
                 session['admin_logged'] = True
                 login_attempts = 0
             else:
@@ -2299,6 +2396,7 @@ def admin():
                 
     authorized = session.get('admin_logged', False)
     return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, cats=categories_list, stats=site_stats, authorized=authorized, error=False, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
+
 @app.route('/ping')
 def ping():
     return "OK", 200
