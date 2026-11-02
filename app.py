@@ -30,7 +30,7 @@ class Store(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)                    # اسم المتجر
-    subdomain = db.Column(db.String(50), unique=True, nullable=False)   # الرابط الفرعي (مثلاً: ahmad)
+    subdomain = db.Column(db.String(50), unique=True, nullable=False)   # الرابط الفرعي أو المعرف (مثلاً: default أو store2)
     admin_password = db.Column(db.String(200), nullable=False)          # كلمة مرور لوحة التحكم الخاصة به
     
     # حزم الاشتراك والإيقاف التلقائي
@@ -87,6 +87,15 @@ def init_db():
     try:
         with app.app_context():
             db.create_all()
+            # إنشاء متجر افتراضي أول (default) تلقائياً إذا لم يكن موجوداً
+            default_store = Store.query.filter_by(subdomain='default').first()
+            if not default_store:
+                default_store = Store(name="عتيق | Atiq", subdomain="default", admin_password="samemomomo**1", subscription_status="active", subscription_expiry=datetime.utcnow() + timedelta(days=365))
+                db.session.add(default_store)
+                db.session.commit()
+                default_settings = StoreSettings(store_id=default_store.id)
+                db.session.add(default_settings)
+                db.session.commit()
     except Exception as e:
         print(f"Database init error: {e}")
 
@@ -98,38 +107,31 @@ def make_session_permanent():
     app.permanent_session_lifetime = timedelta(days=1)
 
 # ==========================================
-# دالة الوسيط (Middleware) لتحديد المتجر المعزول تلقائياً من الرابط (Subdomain)
+# دالة الوسيط (Middleware) لتحديد المتجر (يدعم ?store=name والـ Subdomain)
 # ==========================================
 @app.before_request
 def detect_store():
     if request.endpoint == 'ping' or request.path.startswith('/static/'):
         return
 
-    host = request.host
-    parts = host.split('.')
+    # 1. البحث عبر الرابط المباشر (مثل ?store=store2)
+    store_slug = request.args.get('store')
     
-    if len(parts) > 2:
-        subdomain = parts[0]
-    else:
-        subdomain = 'default'
+    # 2. إذا لم يوجد، البحث عبر الـ Subdomain
+    if not store_slug:
+        host = request.host
+        parts = host.split('.')
+        if len(parts) > 2:
+            store_slug = parts[0]
+        else:
+            store_slug = 'default'
 
-    store = Store.query.filter_by(subdomain=subdomain).first()
+    store = Store.query.filter_by(subdomain=store_slug).first()
     
     if not store:
-        store = Store.query.first()
+        store = Store.query.filter_by(subdomain='default').first()
         if not store:
-            # إنشاء متجر افتراضي تلقائياً لكي لا يتوقف السيرفر عند أول تشغيل
-            try:
-                default_store = Store(name="متجر عتيق الافتراضي", subdomain="default", admin_password="samemomomo**1", subscription_status="active", subscription_expiry=datetime.utcnow() + timedelta(days=365))
-                db.session.add(default_store)
-                db.session.commit()
-                default_settings = StoreSettings(store_id=default_store.id)
-                db.session.add(default_settings)
-                db.session.commit()
-                store = default_store
-            except Exception as e:
-                print(f"Error creating default store: {e}")
-                return "المتجر غير موجود", 404
+            return "المتجر غير موجود", 404
 
     if store.subscription_status != 'active':
         return render_template_string("<h1>هذا المتجر متوقف مؤقتاً لعدم تجديد الاشتراك. يرجى التواصل مع الإدارة.</h1>", store=store), 403
@@ -350,7 +352,7 @@ def format_price(raw_price):
         return f"{numbers_only} {curr}"
     return clean_val
 
-# تعريف القوالب (Templates)
+# قوالب HTML (قالب عرض تفاصيل المنتج)
 product_detail_template = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -475,7 +477,7 @@ about_us_template = """
 </head>
 <body>
     <div class="box">
-        <h1>🏛️ قصة متجر عتيق</h1>
+        <h1>🏛️ قصة المتجر</h1>
         <div class="content">{{ about_text }}</div>
         <a href="/" class="back">← العودة إلى المتجر الرئيسي</a>
     </div>
@@ -1353,7 +1355,7 @@ admin_template = """
             <div class="collapsible-header" onclick="toggleSection('sec_about')"><span>🏛️ تحرير وتعديل صفحة "من نحن"</span><span id="icon-sec_about">▼</span></div>
             <div id="sec_about" class="collapsible-content">
                 <form action="/update-about-us" method="POST">
-                    <label>نص قصة متجر عتيق:</label>
+                    <label>نص قصة المتجر:</label>
                     <textarea name="about_text" rows="6" required>{{ about_text }}</textarea>
                     <button type="submit" style="background: #25d366; margin-top: 10px;">حفظ قصة المتجر ✅</button>
                 </form>
@@ -2245,7 +2247,6 @@ def add_product():
         try:
             conn = get_db_connection()
             cur = conn.cursor()
-            # ربط المنتج بمعرف المتجر الحالي g.store.id تلقائياً
             store_id = g.store.id if hasattr(g, 'store') and g.store else 1
             cur.execute('''
                 INSERT INTO products (title, category, condition, price, old_price, discount_percent, raw_old_price, numeric_price, quantity, description, is_featured, images, is_sold, views, store_id)
@@ -2373,8 +2374,6 @@ def admin():
     remaining_seconds = int(lockout_until - current_time) if is_locked else 0
     
     products = get_all_products()
-    
-    # دعم التحقق من كلمة مرور المتجر الخاص الحالي أو العام
     store_password = g.store.admin_password if hasattr(g, 'store') and g.store and g.store.admin_password else ADMIN_PASSWORD
 
     if request.method == 'POST':
