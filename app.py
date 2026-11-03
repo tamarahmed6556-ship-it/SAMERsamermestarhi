@@ -269,7 +269,6 @@ def format_price(raw_price):
         return f"{numbers_only} {curr}"
     return clean_val
 
-# قوالب HTML الخاصة بك كاملة
 product_detail_template = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -468,8 +467,11 @@ default_html_template = """
 
         .top-bar { width: 100%; max-width: 900px; display: flex; justify-content: flex-end; align-items: center; margin-bottom: 15px; position: relative; }
         .dropdown { position: relative; display: inline-block; }
-        .settings-btn { background: #111111; border: 1px solid #333333; padding: 10px 18px; border-radius: 12px; text-decoration: none; color: #ffffff; font-size: 13px; font-weight: bold; cursor: pointer; display: inline-block; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .settings-btn:hover { background: #1a1a1a; border-color: #25d366; }
+        
+        /* زر الإعدادات بدون مربع أسود (شفاف وعائم) */
+        .settings-btn { background: transparent; border: none; padding: 8px 12px; text-decoration: none; color: #ffffff; font-size: 14px; font-weight: bold; cursor: pointer; display: inline-block; outline: none; transition: color 0.2s; }
+        .settings-btn:hover { color: #25d366; }
+
         .dropdown-content { display: none; position: absolute; left: 0; background-color: #111; min-width: 190px; box-shadow: 0px 8px 16px rgba(0,0,0,0.5); border: 1px solid #333; border-radius: 8px; z-index: 10; overflow: hidden; margin-top: 5px; }
         .dropdown-content a { color: #fff; padding: 10px 14px; text-decoration: none; display: flex; justify-content: space-between; align-items: center; font-size: 13px; text-align: right; border-bottom: 1px solid #222; }
         .dropdown-content a:last-child { border-bottom: none; }
@@ -652,6 +654,7 @@ default_html_template = """
     <div class="search-filter-bar">
         <input type="text" id="searchInput" class="search-input" placeholder="{{ config.texts.search_placeholder }}" onkeyup="filterAndSortProducts()">
         <div class="filter-dropdown-container">
+            <!-- قائمة منسدلة جانب البحث تعمل بالضغط (تبديل فتح/إغلاق) -->
             <button type="button" class="filter-icon-btn" onclick="toggleFilterMenu()" title="ترتيب وعرض الأقسام">⌃</button>
             <div id="filterMenu" class="filter-content">
                 <div onclick="selectSort('featured', '✨ قطع مميزة')" style="color: #fbbf24; font-weight: bold;">✨ قطع مميزة</div>
@@ -2299,6 +2302,7 @@ def admin():
                 
     authorized = session.get('admin_logged', False)
     return render_template_string(admin_template, products=products, gifts=gifts, auctions=auctions, notes=notes, reviews=reviews, about_text=about_us_content, config=site_config, controls=site_controls, vis=text_visibility, cats=categories_list, stats=site_stats, authorized=authorized, error=False, is_locked=is_locked, remaining_seconds=remaining_seconds, remaining_attempts=max(0, 5 - login_attempts), raw_template=current_html_template, color_names_ar=color_names_ar)
+
 @app.route('/ping')
 def ping():
     return "OK", 200
