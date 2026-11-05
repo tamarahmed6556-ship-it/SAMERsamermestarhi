@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template_string, request, redirect, url_for, session, jsonify, flash
 import os
 import base64
 from io import BytesIO
@@ -177,7 +177,7 @@ default_site_controls = {
     "logo_animation_style": "rotate",
     "logo_pulse_speed": "3s",
     "logo_pulse_color": "#d97706",
-    "admin_whatsapp": "962790000000",
+    "admin_whatsapp": "9627829882377",
     "social_links": [
         {"name": "إنستغرام", "url": "#"},
         {"name": "تيليجرام", "url": "#"}
@@ -468,7 +468,6 @@ default_html_template = """
         .top-bar { width: 100%; max-width: 900px; display: flex; justify-content: flex-end; align-items: center; margin-bottom: 15px; position: relative; }
         .dropdown { position: relative; display: inline-block; }
         
-        /* زر الإعدادات بدون مربع أسود (شفاف وعائم) */
         .settings-btn { background: transparent; border: none; padding: 8px 12px; text-decoration: none; color: #ffffff; font-size: 14px; font-weight: bold; cursor: pointer; display: inline-block; outline: none; transition: color 0.2s; }
         .settings-btn:hover { color: #25d366; }
 
@@ -654,7 +653,6 @@ default_html_template = """
     <div class="search-filter-bar">
         <input type="text" id="searchInput" class="search-input" placeholder="{{ config.texts.search_placeholder }}" onkeyup="filterAndSortProducts()">
         <div class="filter-dropdown-container">
-            <!-- قائمة منسدلة جانب البحث تعمل بالضغط (تبديل فتح/إغلاق) -->
             <button type="button" class="filter-icon-btn" onclick="toggleFilterMenu()" title="ترتيب وعرض الأقسام">⌃</button>
             <div id="filterMenu" class="filter-content">
                 <div onclick="selectSort('featured', '✨ قطع مميزة')" style="color: #fbbf24; font-weight: bold;">✨ قطع مميزة</div>
@@ -1246,6 +1244,7 @@ admin_template = """
         .stat-box { background: #000; border: 1px solid #333; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
         .preview-circle-box { width: 130px; height: 130px; border: 2px dashed #25d366; border-radius: 50%; margin: 15px auto; overflow: hidden; position: relative; background: #000; display: flex; align-items: center; justify-content: center; }
         .preview-circle-box img { position: absolute; max-width: none; border-radius: 50%; }
+        .bid-row-item { display: flex; justify-content: space-between; align-items: center; background: #151515; padding: 6px 10px; border-radius: 6px; margin-top: 4px; font-size: 12px; border: 1px solid #222; }
     </style>
 </head>
 <body>
@@ -1349,13 +1348,31 @@ admin_template = """
                     <button type="submit" style="background: #dc2626;">تحديث رمز المرور</button>
                 </form>
             </div>
+            
             <div class="collapsible-header" onclick="toggleSection('sec_wa')"><span>📱 رابط التواصل أو رقم الواتساب</span><span id="icon-sec_wa">▼</span></div>
             <div id="sec_wa" class="collapsible-content">
                 <form action="/update-admin-whatsapp" method="POST">
-                    <label>رقم واتساب أو رابط إنستغرام:</label><input type="text" name="admin_whatsapp" value="{{ controls.admin_whatsapp }}" placeholder="مثال: 962790000000" required>
+                    <label>رقم واتساب أو رابط التوجيه للتواصل:</label>
+                    <input type="text" name="admin_whatsapp" value="{{ controls.admin_whatsapp }}" placeholder="مثال: 9627829882377" required>
                     <button type="submit">حفظ وجهة التواصل</button>
                 </form>
             </div>
+
+            <div class="collapsible-header" onclick="toggleSection('sec_social_links')"><span>🌐 إدارة روابط ورسائل التواصل الاجتماعي (إنستغرام / تلغرام)</span><span id="icon-sec_social_links">▼</span></div>
+            <div id="sec_social_links" class="collapsible-content">
+                <form action="/update-social-links" method="POST">
+                    {% for idx in range(controls.social_links|length) %}
+                        <div style="background: #000; padding: 10px; border-radius: 8px; border: 1px solid #222; margin-bottom: 10px;">
+                            <label>اسم الزر {{ idx + 1 }} (مثلاً: إنستغرام / واتساب):</label>
+                            <input type="text" name="link_name_{{ idx }}" value="{{ controls.social_links[idx].name }}" required>
+                            <label>رابط الزر {{ idx + 1 }}:</label>
+                            <input type="text" name="link_url_{{ idx }}" value="{{ controls.social_links[idx].url }}" required>
+                        </div>
+                    {% endfor %}
+                    <button type="submit" style="background: #25d366; margin-top: 5px;">حفظ وتحديث الأزرار ✅</button>
+                </form>
+            </div>
+
             <div class="collapsible-header" onclick="toggleSection('sec_cod')"><span>💵 إعدادات جملة الدفع عند الاستلام</span><span id="icon-sec_cod">▼</span></div>
             <div id="sec_cod" class="collapsible-content">
                 <form action="/update-cod-settings" method="POST">
@@ -1504,7 +1521,7 @@ admin_template = """
                 </div>
             </div>
 
-            <div class="collapsible-header" onclick="toggleSection('sec_auctions')"><span>🔨 إدارة وإطلاق المزادات</span><span id="icon-sec_auctions">▼</span></div>
+            <div class="collapsible-header" onclick="toggleSection('sec_auctions')"><span>🔨 إدارة وإطلاق المزادات والحذف الفردي للمزايدات</span><span id="icon-sec_auctions">▼</span></div>
             <div id="sec_auctions" class="collapsible-content">
                 <form action="/admin-add-auction" method="POST" enctype="multipart/form-data">
                     <label>عنوان المزاد (اسم القطعة):</label><input type="text" name="title" placeholder="مثال: ساعة فاخرة نادرة" required>
@@ -1517,19 +1534,39 @@ admin_template = """
                     <button type="submit" style="background: #d97706; margin-top: 10px;">إطلاق المزاد 🚀</button>
                 </form>
                 <div style="margin-top: 15px;">
-                    <h4 style="color: #fbbf24; font-size: 14px; margin-bottom: 10px;">المزادات النشطة:</h4>
+                    <h4 style="color: #fbbf24; font-size: 14px; margin-bottom: 10px;">المزادات النشطة وإدارة المزايدات:</h4>
                     {% if auctions|length == 0 %}<p style="color: #777; font-size: 12px; text-align: center;">لا توجد مزادات نشطة.</p>{% endif %}
                     {% for a in auctions %}
-                        <div class="product-row" style="flex-direction: column; align-items: flex-start; gap: 5px;">
-                            <div style="display: flex; justify-content: space-between; width: 100%;">
+                        <div class="product-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
                                 <span><b>{{ a.title }}</b> (السعر الحالي: {{ a.current_price }})</span>
-                                <form action="/delete-auction/{{ a.id }}" method="POST" style="margin:0;"><button type="submit" class="delete-btn">حذف</button></form>
+                                <form action="/delete-auction/{{ a.id }}" method="POST" style="margin:0;"><button type="submit" class="delete-btn">حذف المزاد بالكامل</button></form>
                             </div>
-                            {% if a.bids and a.bids|length > 0 %}<span style="font-size: 11px; color: #25d366;">إجمالي المزايدات: {{ a.bids|length }} مزايدة</span>{% endif %}
+                            
+                            <!-- قسم إدارة المزايدات الفردية داخل المزاد -->
+                            <details style="width: 100%; background: #000; padding: 8px; border-radius: 6px; border: 1px solid #333;">
+                                <summary style="color: #fbbf24; font-size: 12px; cursor: pointer; font-weight: bold;">📜 عرض وإدارة المزايدات الفردية (إجمالي: {{ a.bids|length if a.bids else 0 }})</summary>
+                                <div style="margin-top: 8px;">
+                                    {% if a.bids and a.bids|length > 0 %}
+                                        {% for b_idx in range(a.bids|length) %}
+                                            {% set bid = a.bids[b_idx] %}
+                                            <div class="bid-row-item">
+                                                <span><b>{{ bid.amount }}</b> (بواسطة: {{ bid.name }} - هاتف: {{ bid.phone }})</span>
+                                                <form action="/delete-bid/{{ a.id }}/{{ b_idx }}" method="POST" style="margin:0;" onsubmit="return confirm('هل أنت تأكد من حذف هذه المزايدة؟');">
+                                                    <button type="submit" class="delete-btn" style="padding: 2px 6px; font-size: 10px;">حذف المزايدة ✖</button>
+                                                </form>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p style="color: #777; font-size: 11px; margin: 4px 0;">لا توجد مزايدات مسجلة لهذا المزاد بعد.</p>
+                                    {% endif %}
+                                </div>
+                            </details>
                         </div>
                     {% endfor %}
                 </div>
             </div>
+
             <div class="collapsible-header" onclick="toggleSection('sec_code')"><span>💻 محرر الكود الداخلي</span><span id="icon-sec_code">▼</span></div>
             <div id="sec_code" class="collapsible-content">
                 <form action="/update-code" method="POST">
@@ -1851,8 +1888,11 @@ def place_bid(a_id):
         
         msg = f"مرحباً سامر، لدي مزايدة جديدة\nعلى القطعة: {auction['title']}\nقيمة المزايدة: {formatted_bid_amount}\nاسم المزايد: {bidder_name}\nرقم الهاتف: {bidder_phone}"
         encoded_msg = urllib.parse.quote(msg)
-        target_setting = site_controls.get('admin_whatsapp', '962790000000')
-        final_url = f"https://wa.me/{target_setting}?text={encoded_msg}"
+        target_setting = site_controls.get('admin_whatsapp', '9627829882377')
+        if target_setting.startswith("http://") or target_setting.startswith("https://"):
+            final_url = target_setting
+        else:
+            final_url = f"https://wa.me/{target_setting}?text={encoded_msg}"
         return redirect(final_url)
         
     return redirect(url_for('auction_detail', a_id=a_id))
@@ -1873,8 +1913,11 @@ def buy_product(p_id):
     if full_name and province and street and phone:
         msg = f"مرحباً سامر، لدي طلب شراء جديد\nعلى القطعة: {product['title']} (السعر: {product['price']})\nاسم الزبون: {full_name}\nالمحافظة: {province}\nالشارع: {street}\nرقم الهاتف: {phone}"
         encoded_msg = urllib.parse.quote(msg)
-        target_setting = site_controls.get('admin_whatsapp', '962790000000')
-        final_url = f"https://wa.me/{target_setting}?text={encoded_msg}"
+        target_setting = site_controls.get('admin_whatsapp', '9627829882377')
+        if target_setting.startswith("http://") or target_setting.startswith("https://"):
+            final_url = target_setting
+        else:
+            final_url = f"https://wa.me/{target_setting}?text={encoded_msg}"
         return redirect(final_url)
     return redirect(url_for('product_detail', p_id=p_id))
 
@@ -1885,6 +1928,38 @@ def update_admin_whatsapp():
     if whatsapp: 
         site_controls['admin_whatsapp'] = whatsapp
         save_json_file(CONTROLS_FILE, site_controls)
+    return redirect(url_for('admin'))
+
+@app.route('/update-social-links', methods=['POST'])
+def update_social_links():
+    global site_controls
+    links = []
+    idx = 0
+    while f'link_name_{idx}' in request.form:
+        name = request.form.get(f'link_name_{idx}', '').strip()
+        url = request.form.get(f'link_url_{idx}', '').strip()
+        if name and url:
+            links.append({"name": name, "url": url})
+        idx += 1
+    if links:
+        site_controls['social_links'] = links
+        save_json_file(CONTROLS_FILE, site_controls)
+    return redirect(url_for('admin'))
+
+@app.route('/delete-bid/<int:a_id>/<int:b_idx>', methods=['POST'])
+def delete_bid(a_id, b_idx):
+    global auctions
+    auction = next((a for a in auctions if a['id'] == a_id), None)
+    if auction and auction.get('bids') and 0 <= b_idx < len(auction['bids']):
+        auction['bids'].pop(b_idx)
+        if auction['bids']:
+            auction['bids'] = sorted(auction['bids'], key=lambda x: x['raw_amount'], reverse=True)
+            top_bid = auction['bids'][0]
+            auction['current_price'] = f"{top_bid['amount']} (بواسطة: {top_bid['name']})"
+        else:
+            original_start = auction.get('starting_price', auction.get('min_bid', '0'))
+            auction['current_price'] = original_start
+        save_json_file(AUCTIONS_FILE, auctions)
     return redirect(url_for('admin'))
 
 @app.route('/update-currency', methods=['POST'])
@@ -2042,7 +2117,7 @@ def admin_add_auction():
     max_price = format_price(raw_max) if raw_max else ""
     images_list = [process_and_compress_image(f) for f in request.files.getlist('auction_images') if f and f.filename != '']
     if title and current_price:
-        auctions.insert(0, {"id": auction_id_counter, "title": title, "description": description, "current_price": current_price, "min_bid": min_bid, "max_price": max_price, "end_time": end_time.isoformat(), "images": [img for img in images_list if img], "bids": []})
+        auctions.insert(0, {"id": auction_id_counter, "title": title, "description": description, "starting_price": current_price, "current_price": current_price, "min_bid": min_bid, "max_price": max_price, "end_time": end_time.isoformat(), "images": [img for img in images_list if img], "bids": []})
         auction_id_counter += 1
         save_json_file(AUCTIONS_FILE, auctions)
     return redirect(url_for('admin'))
