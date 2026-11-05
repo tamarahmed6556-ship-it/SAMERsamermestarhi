@@ -177,7 +177,7 @@ default_site_controls = {
     "logo_animation_style": "rotate",
     "logo_pulse_speed": "3s",
     "logo_pulse_color": "#d97706",
-    "admin_whatsapp": "9627829882377",
+    "admin_whatsapp": "8298 8237 7",
     "social_links": [
         {"name": "إنستغرام", "url": "#"},
         {"name": "تيليجرام", "url": "#"}
@@ -245,17 +245,6 @@ color_names_ar = {
     "search_bar_bg": "لون خلفية شريط البحث", "search_bar_text": "لون نص شريط البحث",
     "filter_btn_bg": "لون خلفية زر الفلترة ⌃", "filter_btn_text": "لون أيقونة ونصوص زر الفلترة"
 }
-
-def save_all_states():
-    save_json_file(GIFTS_FILE, gifts)
-    save_json_file(SETTINGS_FILE, site_config)
-    save_json_file(CONTROLS_FILE, site_controls)
-    save_json_file(VIS_FILE, text_visibility)
-    save_json_file(CATS_FILE, categories_list)
-    save_json_file(AUCTIONS_FILE, auctions)
-    save_json_file(REVIEWS_FILE, reviews)
-    save_json_file(NOTES_FILE, notes)
-    save_json_file(STATS_FILE, site_stats)
 
 def format_price(raw_price):
     if not raw_price:
@@ -1265,7 +1254,7 @@ admin_template = """
                 </form>
                 {% if error %}<p style="color: #ef4444; text-align: center; font-size: 13px; margin-top: 10px;">❌ رمز المرور غير صحيح! (المحاولات المتبقية: {{ remaining_attempts }})</p>{% endif %}
                 {% if controls.enable_forgot_pass %}
-                <a href="https://wa.me/{{ controls.admin_whatsapp }}?text={{ 'مرحباً سامر، لقد نسيت كلمة مرور لوحة التحكم الخاصة بمتجر عتيق، أرجو مساعدتي في استرجاعها.' | urlencode }}" target="_blank" class="forgot-pass-btn">🔑 نسيت كلمة السر؟ (إرسال تنبيه واتساب)</a>
+                <a href="https://wa.me/{{ controls.admin_whatsapp | replace(' ', '') }}?text={{ 'مرحباً سامر، لقد نسيت كلمة مرور لوحة التحكم الخاصة بمتجر عتيق، أرجو مساعدتي في استرجاعها.' | urlencode }}" target="_blank" class="forgot-pass-btn">🔑 نسيت كلمة السر؟ (إرسال تنبيه واتساب)</a>
                 {% endif %}
             {% endif %}
         {% else %}
@@ -1353,7 +1342,7 @@ admin_template = """
             <div id="sec_wa" class="collapsible-content">
                 <form action="/update-admin-whatsapp" method="POST">
                     <label>رقم واتساب أو رابط التوجيه للتواصل:</label>
-                    <input type="text" name="admin_whatsapp" value="{{ controls.admin_whatsapp }}" placeholder="مثال: 9627829882377" required>
+                    <input type="text" name="admin_whatsapp" value="{{ controls.admin_whatsapp }}" placeholder="مثال: 8298 8237 7" required>
                     <button type="submit">حفظ وجهة التواصل</button>
                 </form>
             </div>
@@ -1888,11 +1877,12 @@ def place_bid(a_id):
         
         msg = f"مرحباً سامر، لدي مزايدة جديدة\nعلى القطعة: {auction['title']}\nقيمة المزايدة: {formatted_bid_amount}\nاسم المزايد: {bidder_name}\nرقم الهاتف: {bidder_phone}"
         encoded_msg = urllib.parse.quote(msg)
-        target_setting = site_controls.get('admin_whatsapp', '9627829882377')
-        if target_setting.startswith("http://") or target_setting.startswith("https://"):
-            final_url = target_setting
+        target_setting = site_controls.get('admin_whatsapp', '8298 8237 7')
+        clean_target = target_setting.replace(" ", "")
+        if clean_target.startswith("http://") or clean_target.startswith("https://"):
+            final_url = clean_target
         else:
-            final_url = f"https://wa.me/{target_setting}?text={encoded_msg}"
+            final_url = f"https://wa.me/{clean_target}?text={encoded_msg}"
         return redirect(final_url)
         
     return redirect(url_for('auction_detail', a_id=a_id))
@@ -1913,11 +1903,12 @@ def buy_product(p_id):
     if full_name and province and street and phone:
         msg = f"مرحباً سامر، لدي طلب شراء جديد\nعلى القطعة: {product['title']} (السعر: {product['price']})\nاسم الزبون: {full_name}\nالمحافظة: {province}\nالشارع: {street}\nرقم الهاتف: {phone}"
         encoded_msg = urllib.parse.quote(msg)
-        target_setting = site_controls.get('admin_whatsapp', '9627829882377')
-        if target_setting.startswith("http://") or target_setting.startswith("https://"):
-            final_url = target_setting
+        target_setting = site_controls.get('admin_whatsapp', '8298 8237 7')
+        clean_target = target_setting.replace(" ", "")
+        if clean_target.startswith("http://") or clean_target.startswith("https://"):
+            final_url = clean_target
         else:
-            final_url = f"https://wa.me/{target_setting}?text={encoded_msg}"
+            final_url = f"https://wa.me/{clean_target}?text={encoded_msg}"
         return redirect(final_url)
     return redirect(url_for('product_detail', p_id=p_id))
 
