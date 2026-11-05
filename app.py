@@ -52,7 +52,6 @@ def init_db():
     except Exception as e:
         print(f"Database init error: {e}")
 
-# تهيئة جدول المنتجات عند بدء التشغيل
 init_db()
 
 @app.before_request
@@ -60,7 +59,6 @@ def make_session_permanent():
     session.permanent = True
     app.permanent_session_lifetime = timedelta(days=1)
 
-# ملفات الحفظ الدائم الأخرى
 GIFTS_FILE = "persistent_gifts.json"
 SETTINGS_FILE = "persistent_settings.json"
 CONTROLS_FILE = "persistent_controls.json"
@@ -264,6 +262,13 @@ product_detail_template = """
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ product.title }} - {{ config.title }}</title>
+    <!-- وسوم المعاينة لظهور الصورة والعنوان عند المشاركة -->
+    <meta property="og:title" content="{{ product.title }} - {{ config.title }}">
+    <meta property="og:description" content="{{ product.description[:100] if product.description else config.subtitle }}">
+    {% if product.images and product.images|length > 0 %}
+    <meta property="og:image" content="{{ product.images[0] }}">
+    {% endif %}
+    <meta property="og:type" content="product">
     <style>
         body { background-color: {{ config.colors.bg_color }}; color: #ffffff; font-family: Tahoma, sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .detail-container { background: #111; border: 1px solid #222; border-radius: 14px; padding: 25px; width: 100%; max-width: 600px; box-shadow: 0 4px 25px rgba(0,0,0,0.9); margin-top: 20px; text-align: center; }
