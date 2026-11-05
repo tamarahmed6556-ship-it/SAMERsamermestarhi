@@ -625,6 +625,11 @@ default_html_template = """
                 <a href="/about-us">🏛️ من نحن</a>
                 {% if controls.enable_reviews_page %}<a href="/reviews">⭐ آراء العملاء</a>{% endif %}
                 {% if controls.enable_copyright %}<a href="/copyright">📄 حقوق النشر والشروط</a>{% endif %}
+                {% if controls.enable_socials and controls.social_links|length > 0 %}
+                    {% for s in controls.social_links %}
+                        <a href="{{ s.url }}" target="_blank">🌐 {{ s.name }}</a>
+                    {% endfor %}
+                {% endif %}
                 <a href="/admin" style="color: #25d366; font-weight: bold;">🔐 لوحة التحكم</a>
             </div>
         </div>
