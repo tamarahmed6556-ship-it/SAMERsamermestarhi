@@ -1909,28 +1909,24 @@ def place_bid(a_id):
     
     bid_raw = int(bid_amount_str)
     
-    # استخراج السعر الحالي الأساسي أو أعلى مزايدة
     current_highest_raw = 0
     if auction.get('bids') and len(auction['bids']) > 0:
         current_highest_raw = max(b['raw_amount'] for b in auction['bids'])
     else:
         current_highest_raw = int(re.sub(r'[^0-9]', '', str(auction['starting_price'])))
     
-    # استخراج الحد الأدنى للزيادة المطلوبة
     min_increment = 1
     try:
         min_increment = int(re.sub(r'[^0-9]', '', str(auction['min_bid'])))
     except Exception:
         min_increment = 1
 
-    # الشرط 1: منع المزايدة بأقل من السعر الحالي أو أقل من خطوة الزيادة المطلوبة فوقه
     if bid_raw <= current_highest_raw:
         return render_template_string(auction_detail_template, auction=auction, config=site_config, controls=site_controls, vis=text_visibility, error=f"❌ خطأ: عذراً، يجب أن تكون المزايدة أعلى من السعر الحالي ({current_highest_raw})!")
 
     if bid_raw < (current_highest_raw + min_increment):
         return render_template_string(auction_detail_template, auction=auction, config=site_config, controls=site_controls, vis=text_visibility, error=f"❌ خطأ: الحد الأدنى للزيادة المطلوبة هو {min_increment}، فيجب ألا تقل مزايدتك عن ({current_highest_raw + min_increment})!")
 
-    # الشرط 2: ممنوع أن يزيد المزايد أكثر من الحد الأقصى للمزايدة (الشراء الفوري) إذا كان مُحدداً
     if auction.get('max_price') and str(auction.get('max_price')).strip() != '':
         try:
             max_val = int(re.sub(r'[^0-9]', '', str(auction['max_price'])))
@@ -1951,7 +1947,7 @@ def place_bid(a_id):
         msg = f"مرحباً سامر، لدي مزايدة جديدة\nعلى القطعة: {auction['title']}\nقيمة المزايدة: {formatted_bid_amount}\nاسم المزايد: {bidder_name}\nرقم الهاتف: {bidder_phone}"
         encoded_msg = urllib.parse.quote(msg)
         target_setting = site_controls.get('admin_whatsapp', '0782378298')
-        clean_target = target_setting.replace(" ", "")
+        clean_target = re.sub(r'[^0-9+]', '', target_setting)
         if clean_target.startswith("http://") or clean_target.startswith("https://"):
             final_url = clean_target
         else:
@@ -1977,7 +1973,7 @@ def buy_product(p_id):
         msg = f"مرحباً سامر، لدي طلب شراء جديد\nعلى القطعة: {product['title']} (السعر: {product['price']})\nاسم الزبون: {full_name}\nالمحافظة: {province}\nالشارع: {street}\nرقم الهاتف: {phone}"
         encoded_msg = urllib.parse.quote(msg)
         target_setting = site_controls.get('admin_whatsapp', '0782378298')
-        clean_target = target_setting.replace(" ", "")
+        clean_target = re.sub(r'[^0-9+]', '', target_setting)
         if clean_target.startswith("http://") or clean_target.startswith("https://"):
             final_url = clean_target
         else:
