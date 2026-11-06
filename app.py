@@ -177,7 +177,8 @@ default_site_controls = {
     "logo_pulse_color": "#d97706",
     "admin_whatsapp": "0782378298",
     "social_links": [
-        {"name": "واتساب", "url": "0782378298"}
+        {"name": "إنستغرام", "url": "atiq._store"},
+        {"name": "تليجرام", "url": "0782378298"}
     ],
     "copyright_text": "جميع الحقوق محفوظة © عتيق 2026. تم تصميم وتطوير المنصة بعناية فائقة."
 }
@@ -934,8 +935,20 @@ default_html_template = """
         function openSocialLink(input, nameHint) {
             if (!input) return;
             let finalUrl = input.trim();
-            const cleanNum = finalUrl.replace(/[^0-9]/g, '');
-            finalUrl = `https://wa.me/${cleanNum}`;
+            const cleanInput = finalUrl.replace(/[^0-9]/g, '');
+            
+            // إذا كان المدخل يتكون من أقم فقط (أو يبدأ بـ + وطول رقمي معتبر)، نعتبره رقم واتساب
+            if (/^\+?[0-9]{7,15}$/.test(finalUrl.replace(/\s+/g, ''))) {
+                finalUrl = `https://wa.me/${cleanInput}`;
+            } else if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+                // إذا كان اسم مستخدم إنستغرام أو رابط بدون بروتوكول
+                if (nameHint && nameHint.includes('إنستغرام')) {
+                    const cleanUser = finalUrl.replace('@', '').replace('/', '');
+                    finalUrl = `https://instagram.com/${cleanUser}`;
+                } else {
+                    finalUrl = `https://${finalUrl}`;
+                }
+            }
             window.open(finalUrl, '_blank');
         }
 
@@ -1391,10 +1404,10 @@ admin_template = """
                 <form action="/update-social-links" method="POST">
                     {% for idx in range(controls.social_links|length) %}
                         <div style="background: #000; padding: 10px; border-radius: 8px; border: 1px solid #222; margin-bottom: 10px;">
-                            <label>اسم الزر {{ idx + 1 }} (مثلاً: واتساب):</label>
+                            <label>اسم الزر {{ idx + 1 }} (مثلاً: إنستغرام):</label>
                             <input type="text" name="link_name_{{ idx }}" value="{{ controls.social_links[idx].name }}" required>
-                            <label>رقم الواتساب {{ idx + 1 }} (أرقام فقط):</label>
-                            <input type="text" name="link_url_{{ idx }}" value="{{ controls.social_links[idx].url }}" oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
+                            <label>رابط الزر أو رقم الواتساب {{ idx + 1 }} (رقم أو رابط إنستغرام):</label>
+                            <input type="text" name="link_url_{{ idx }}" value="{{ controls.social_links[idx].url }}" required>
                         </div>
                     {% endfor %}
                     <button type="submit" style="background: #25d366; margin-top: 5px;">حفظ وتحديث الأزرار ✅</button>
