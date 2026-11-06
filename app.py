@@ -175,10 +175,10 @@ default_site_controls = {
     "logo_animation_style": "rotate",
     "logo_pulse_speed": "3s",
     "logo_pulse_color": "#d97706",
-    "admin_whatsapp": "8298 8237 7",
+    "admin_whatsapp": "0782378298",
     "social_links": [
-        {"name": "إنستغرام", "url": "#"},
-        {"name": "تيليجرام", "url": "#"}
+        {"name": "إنستغرام", "url": "atiq._store"},
+        {"name": "تيليجرام", "url": "0782378298"}
     ],
     "copyright_text": "جميع الحقوق محفوظة © عتيق 2026. تم تصميم وتطوير المنصة بعناية فائقة."
 }
@@ -262,7 +262,6 @@ product_detail_template = """
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ product.title }} - {{ config.title }}</title>
-    <!-- وسوم المعاينة لظهور الصورة والعنوان عند المشاركة -->
     <meta property="og:title" content="{{ product.title }} - {{ config.title }}">
     <meta property="og:description" content="{{ product.description[:100] if product.description else config.subtitle }}">
     {% if product.images and product.images|length > 0 %}
@@ -338,14 +337,18 @@ product_detail_template = """
         {% if vis.back_home %}<a href="/" class="back-link">{{ config.texts.back_home }}</a>{% endif %}
     </div>
     <script>
-        function shareCurrentProduct() {
+        async function shareCurrentProduct() {
             const productUrl = window.location.href;
-            const shareText = `شاهد هذه القطعة المميزة:\n📌 {{ product.title }}\n💰 السعر: {{ product.price }}\n🔗 الرابط: ${productUrl}`;
-            if (navigator.share) { navigator.share({ title: '{{ product.title }}', text: shareText, url: productUrl }).catch(() => {}); }
-            else {
-                navigator.clipboard.writeText(shareText);
+            const shareTitle = '{{ product.title | replace("'", "\\'") }}';
+            const shareText = `شاهد هذا المنتج المميز من عتيق: ${shareTitle}`;
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: shareTitle, text: shareText, url: productUrl });
+                } catch (err) {}
+            } else {
+                navigator.clipboard.writeText(productUrl);
                 const toast = document.getElementById('toast');
-                toast.innerText = "✅ تم نسخ تفاصيل ورابط القطعة للمشاركة!";
+                toast.innerText = "✅ تم نسخ رابط المنتج بنجاح!";
                 toast.style.display = 'flex';
                 setTimeout(() => { toast.style.display = 'none'; }, 3000);
             }
@@ -466,7 +469,7 @@ default_html_template = """
         .settings-btn:hover { color: #25d366; }
 
         .dropdown-content { display: none; position: absolute; left: 0; background-color: #111; min-width: 190px; box-shadow: 0px 8px 16px rgba(0,0,0,0.5); border: 1px solid #333; border-radius: 8px; z-index: 10; overflow: hidden; margin-top: 5px; }
-        .dropdown-content a { color: #fff; padding: 10px 14px; text-decoration: none; display: flex; justify-content: space-between; align-items: center; font-size: 13px; text-align: right; border-bottom: 1px solid #222; }
+        .dropdown-content a { color: #fff; padding: 10px 14px; text-decoration: none; display: flex; justify-content: space-between; align-items: center; font-size: 13px; text-align: right; border-bottom: 1px solid #222; cursor: pointer; }
         .dropdown-content a:last-child { border-bottom: none; }
         .dropdown-content a:hover { background-color: #222; color: #25d366; }
         .show { display: block; }
@@ -603,7 +606,7 @@ default_html_template = """
 
         .site-footer { width: 100%; max-width: 900px; margin-top: 40px; padding: 20px 0; border-top: 1px solid #222; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
         .footer-socials { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; }
-        .footer-social-link { color: #aaa; text-decoration: none; font-size: 13px; background: #111; padding: 6px 14px; border-radius: 6px; border: 1px solid #222; }
+        .footer-social-link { color: #aaa; text-decoration: none; font-size: 13px; background: #111; padding: 6px 14px; border-radius: 6px; border: 1px solid #222; cursor: pointer; }
         .footer-copyright { color: #666; font-size: 12px; text-decoration: none; }
     </style>
 </head>
@@ -632,7 +635,7 @@ default_html_template = """
                 {% if controls.enable_copyright %}<a href="/copyright">📄 حقوق النشر والشروط</a>{% endif %}
                 {% if controls.enable_socials and controls.social_links|length > 0 %}
                     {% for s in controls.social_links %}
-                        <a href="{{ s.url }}" target="_blank">🌐 {{ s.name }}</a>
+                        <a onclick="openSocialLink('{{ s.url }}', '{{ s.name }}')">🌐 {{ s.name }}</a>
                     {% endfor %}
                 {% endif %}
                 <a href="/admin" style="color: #25d366; font-weight: bold;">🔐 لوحة التحكم</a>
@@ -725,7 +728,7 @@ default_html_template = """
                                     <a href="/product/{{ p.id }}" class="contact-btn {% if p.is_sold %}sold-btn-disabled{% endif %}">
                                         {% if p.is_sold %}تم البيع{% else %}{{ config.texts.view_details }}{% endif %}
                                     </a>
-                                    <button type="button" class="inline-share-btn {% if p.is_sold %}sold-btn-disabled{% endif %}" onclick="quickShareProduct('{{ p.title | replace("'", "\\'") }}', '{{ p.price }}', '/product/{{ p.id }}')" title="مشاركة القطعة">
+                                    <button type="button" class="inline-share-btn {% if p.is_sold %}sold-btn-disabled{% endif %}" onclick="quickShareProduct('{{ p.title | replace("'", "\\'") }}', '/product/{{ p.id }}')" title="مشاركة القطعة">
                                         <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
                                     </button>
                                 </div>
@@ -756,7 +759,7 @@ default_html_template = """
                                         <a href="/product/{{ g.id }}" class="contact-btn {% if g.is_sold %}sold-btn-disabled{% endif %}">
                                             {% if g.is_sold %}تم البيع{% else %}{{ config.texts.view_details }}{% endif %}
                                         </a>
-                                        <button type="button" class="inline-share-btn {% if g.is_sold %}sold-btn-disabled{% endif %}" onclick="quickShareProduct('{{ g.title | replace("'", "\\'") }}', '{{ g.price }}', '/product/{{ g.id }}')" title="مشاركة الهدية">
+                                        <button type="button" class="inline-share-btn {% if g.is_sold %}sold-btn-disabled{% endif %}" onclick="quickShareProduct('{{ g.title | replace("'", "\\'") }}', '/product/{{ g.id }}')" title="مشاركة الهدية">
                                             <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
                                         </button>
                                     </div>
@@ -836,7 +839,7 @@ default_html_template = """
     {% if controls.enable_socials or controls.enable_copyright %}
     <footer class="site-footer">
         {% if controls.enable_socials and controls.social_links|length > 0 %}
-        <div class="footer-socials">{% for s in controls.social_links %}<a href="{{ s.url }}" target="_blank" class="footer-social-link">{{ s.name }}</a>{% endfor %}</div>
+        <div class="footer-socials">{% for s in controls.social_links %}<a onclick="openSocialLink('{{ s.url }}', '{{ s.name }}')" class="footer-social-link">{{ s.name }}</a>{% endfor %}</div>
         {% endif %}
         {% if controls.enable_copyright %}<a href="/copyright" class="footer-copyright">حقوق النشر والشروط</a>{% endif %}
     </footer>
@@ -903,18 +906,46 @@ default_html_template = """
             requestAnimationFrame(animation);
         }
 
-        function quickShareProduct(title, price, path) {
-            event.stopPropagation();
+        async function quickShareProduct(title, path) {
+            if (event) event.stopPropagation();
             const productUrl = window.location.origin + path;
-            const shareText = `شاهد هذه القطعة المميزة:\n📌 ${title}\n💰 السعر: ${price}\n🔗 الرابط: ${productUrl}`;
-            if (navigator.share) { navigator.share({ title: title, text: shareText, url: productUrl }).catch(() => {}); }
-            else {
-                navigator.clipboard.writeText(shareText);
+            const shareText = `شاهد هذا المنتج المميز من عتيق: ${title}`;
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: title, text: shareText, url: productUrl });
+                } catch (err) {}
+            } else {
+                navigator.clipboard.writeText(productUrl);
                 const toast = document.getElementById('toast');
-                toast.innerText = "✅ تم نسخ تفاصيل ورابط القطعة للمشاركة!";
+                toast.innerText = "✅ تم نسخ رابط المنتج بنجاح!";
                 toast.style.display = 'flex';
                 setTimeout(() => { toast.style.display = 'none'; }, 3000);
             }
+        }
+
+        function openSocialLink(input, nameHint) {
+            if (!input) return;
+            let finalUrl = input.trim();
+            const lowerName = (nameHint || '').toLowerCase();
+            
+            if (lowerName.includes('انستغرام') || lowerName.includes('instagram')) {
+                if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+                    finalUrl = `https://instagram.com/${finalUrl.replace('@', '')}`;
+                }
+            } else if (lowerName.includes('تيليجرام') || lowerName.includes('telegram')) {
+                if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+                    const cleanInput = finalUrl.replace('@', '');
+                    if (/^\+?[0-9]+$/.test(cleanInput)) {
+                        finalUrl = `https://t.me/+${cleanInput.replace('+', '')}`;
+                    } else {
+                        finalUrl = `https://t.me/${cleanInput}`;
+                    }
+                }
+            } else if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+                finalUrl = `https://${finalUrl}`;
+            }
+
+            window.open(finalUrl, '_blank');
         }
 
         function toggleFilterMenu() { document.getElementById("filterMenu").classList.toggle("filter-show"); }
@@ -1352,7 +1383,7 @@ admin_template = """
             <div id="sec_wa" class="collapsible-content">
                 <form action="/update-admin-whatsapp" method="POST">
                     <label>رقم واتساب أو رابط التوجيه للتواصل:</label>
-                    <input type="text" name="admin_whatsapp" value="{{ controls.admin_whatsapp }}" placeholder="مثال: 8298 8237 7" required>
+                    <input type="text" name="admin_whatsapp" value="{{ controls.admin_whatsapp }}" placeholder="مثال: 0782378298" required>
                     <button type="submit">حفظ وجهة التواصل</button>
                 </form>
             </div>
@@ -1362,9 +1393,9 @@ admin_template = """
                 <form action="/update-social-links" method="POST">
                     {% for idx in range(controls.social_links|length) %}
                         <div style="background: #000; padding: 10px; border-radius: 8px; border: 1px solid #222; margin-bottom: 10px;">
-                            <label>اسم الزر {{ idx + 1 }} (مثلاً: إنستغرام / واتساب):</label>
+                            <label>اسم الزر {{ idx + 1 }} (مثلاً: إنستغرام / تيليجرام):</label>
                             <input type="text" name="link_name_{{ idx }}" value="{{ controls.social_links[idx].name }}" required>
-                            <label>رابط الزر {{ idx + 1 }}:</label>
+                            <label>رابط الزر / اليوزر / الرقم {{ idx + 1 }}:</label>
                             <input type="text" name="link_url_{{ idx }}" value="{{ controls.social_links[idx].url }}" required>
                         </div>
                     {% endfor %}
@@ -1542,7 +1573,6 @@ admin_template = """
                                 <form action="/delete-auction/{{ a.id }}" method="POST" style="margin:0;"><button type="submit" class="delete-btn">حذف المزاد بالكامل</button></form>
                             </div>
                             
-                            <!-- قسم إدارة المزايدات الفردية داخل المزاد -->
                             <details style="width: 100%; background: #000; padding: 8px; border-radius: 6px; border: 1px solid #333;">
                                 <summary style="color: #fbbf24; font-size: 12px; cursor: pointer; font-weight: bold;">📜 عرض وإدارة المزايدات الفردية (إجمالي: {{ a.bids|length if a.bids else 0 }})</summary>
                                 <div style="margin-top: 8px;">
@@ -1729,6 +1759,7 @@ admin_template = """
 """
 
 current_html_template = load_json_file(CODE_FILE, default_html_template)
+
 def process_and_compress_image(image_file):
     try:
         img = Image.open(image_file)
@@ -1887,7 +1918,7 @@ def place_bid(a_id):
         
         msg = f"مرحباً سامر، لدي مزايدة جديدة\nعلى القطعة: {auction['title']}\nقيمة المزايدة: {formatted_bid_amount}\nاسم المزايد: {bidder_name}\nرقم الهاتف: {bidder_phone}"
         encoded_msg = urllib.parse.quote(msg)
-        target_setting = site_controls.get('admin_whatsapp', '8298 8237 7')
+        target_setting = site_controls.get('admin_whatsapp', '0782378298')
         clean_target = target_setting.replace(" ", "")
         if clean_target.startswith("http://") or clean_target.startswith("https://"):
             final_url = clean_target
@@ -1913,7 +1944,7 @@ def buy_product(p_id):
     if full_name and province and street and phone:
         msg = f"مرحباً سامر، لدي طلب شراء جديد\nعلى القطعة: {product['title']} (السعر: {product['price']})\nاسم الزبون: {full_name}\nالمحافظة: {province}\nالشارع: {street}\nرقم الهاتف: {phone}"
         encoded_msg = urllib.parse.quote(msg)
-        target_setting = site_controls.get('admin_whatsapp', '8298 8237 7')
+        target_setting = site_controls.get('admin_whatsapp', '0782378298')
         clean_target = target_setting.replace(" ", "")
         if clean_target.startswith("http://") or clean_target.startswith("https://"):
             final_url = clean_target
