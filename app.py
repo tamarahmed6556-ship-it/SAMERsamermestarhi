@@ -177,8 +177,7 @@ default_site_controls = {
     "logo_pulse_color": "#d97706",
     "admin_whatsapp": "0782378298",
     "social_links": [
-        {"name": "إنستغرام", "url": "atiq._store"},
-        {"name": "تيليجرام", "url": "0782378298"}
+        {"name": "واتساب", "url": "0782378298"}
     ],
     "copyright_text": "جميع الحقوق محفوظة © عتيق 2026. تم تصميم وتطوير المنصة بعناية فائقة."
 }
@@ -935,28 +934,8 @@ default_html_template = """
         function openSocialLink(input, nameHint) {
             if (!input) return;
             let finalUrl = input.trim();
-            const lowerName = (nameHint || '').toLowerCase();
-            
-            if (lowerName.includes('انستغرام') || lowerName.includes('instagram')) {
-                if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-                    finalUrl = `https://instagram.com/${finalUrl.replace('@', '')}`;
-                }
-            } else if (lowerName.includes('تيليجرام') || lowerName.includes('telegram')) {
-                if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-                    const cleanInput = finalUrl.replace('@', '');
-                    if (/^\+?[0-9]+$/.test(cleanInput)) {
-                        finalUrl = `https://t.me/+${cleanInput.replace('+', '')}`;
-                    } else {
-                        finalUrl = `https://t.me/${cleanInput}`;
-                    }
-                }
-            } else if (lowerName.includes('واتساب') || lowerName.includes('whatsapp') || /^[0-9+]+$/.test(finalUrl)) {
-                const cleanNum = finalUrl.replace(/[^0-9]/g, '');
-                finalUrl = `https://wa.me/${cleanNum}`;
-            } else if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-                finalUrl = `https://${finalUrl}`;
-            }
-
+            const cleanNum = finalUrl.replace(/[^0-9]/g, '');
+            finalUrl = `https://wa.me/${cleanNum}`;
             window.open(finalUrl, '_blank');
         }
 
@@ -1412,10 +1391,10 @@ admin_template = """
                 <form action="/update-social-links" method="POST">
                     {% for idx in range(controls.social_links|length) %}
                         <div style="background: #000; padding: 10px; border-radius: 8px; border: 1px solid #222; margin-bottom: 10px;">
-                            <label>اسم الزر {{ idx + 1 }} (مثلاً: إنستغرام / تيليجرام):</label>
+                            <label>اسم الزر {{ idx + 1 }} (مثلاً: واتساب):</label>
                             <input type="text" name="link_name_{{ idx }}" value="{{ controls.social_links[idx].name }}" required>
-                            <label>رابط الزر / اليوزر / الرقم {{ idx + 1 }}:</label>
-                            <input type="text" name="link_url_{{ idx }}" value="{{ controls.social_links[idx].url }}" required>
+                            <label>رقم الواتساب {{ idx + 1 }} (أرقام فقط):</label>
+                            <input type="text" name="link_url_{{ idx }}" value="{{ controls.social_links[idx].url }}" oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
                         </div>
                     {% endfor %}
                     <button type="submit" style="background: #25d366; margin-top: 5px;">حفظ وتحديث الأزرار ✅</button>
@@ -1948,10 +1927,7 @@ def place_bid(a_id):
         encoded_msg = urllib.parse.quote(msg)
         target_setting = site_controls.get('admin_whatsapp', '0782378298')
         clean_target = re.sub(r'[^0-9+]', '', target_setting)
-        if clean_target.startswith("http://") or clean_target.startswith("https://"):
-            final_url = clean_target
-        else:
-            final_url = f"https://wa.me/{clean_target}?text={encoded_msg}"
+        final_url = f"https://wa.me/{clean_target}?text={encoded_msg}"
         return redirect(final_url)
         
     return redirect(url_for('auction_detail', a_id=a_id))
@@ -1974,10 +1950,7 @@ def buy_product(p_id):
         encoded_msg = urllib.parse.quote(msg)
         target_setting = site_controls.get('admin_whatsapp', '0782378298')
         clean_target = re.sub(r'[^0-9+]', '', target_setting)
-        if clean_target.startswith("http://") or clean_target.startswith("https://"):
-            final_url = clean_target
-        else:
-            final_url = f"https://wa.me/{clean_target}?text={encoded_msg}"
+        final_url = f"https://wa.me/{clean_target}?text={encoded_msg}"
         return redirect(final_url)
     return redirect(url_for('product_detail', p_id=p_id))
 
