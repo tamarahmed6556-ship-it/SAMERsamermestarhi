@@ -266,8 +266,10 @@ product_detail_template = """
     <meta property="og:description" content="{{ product.description[:100] if product.description else config.subtitle }}">
     {% if product.images and product.images|length > 0 %}
     <meta property="og:image" content="{{ product.images[0] }}">
+    <meta property="og:image:secure_url" content="{{ product.images[0] }}">
     {% endif %}
     <meta property="og:type" content="product">
+    <meta property="og:site_name" content="{{ config.title }}">
     <style>
         body { background-color: {{ config.colors.bg_color }}; color: #ffffff; font-family: Tahoma, sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .detail-container { background: #111; border: 1px solid #222; border-radius: 14px; padding: 25px; width: 100%; max-width: 600px; box-shadow: 0 4px 25px rgba(0,0,0,0.9); margin-top: 20px; text-align: center; }
@@ -454,6 +456,13 @@ default_html_template = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ config.title }}</title>
+    <meta property="og:title" content="{{ config.title }}">
+    <meta property="og:description" content="{{ config.subtitle }}">
+    {% if page_products and page_products[0].images and page_products[0].images|length > 0 %}
+    <meta property="og:image" content="{{ page_products[0].images[0] }}">
+    <meta property="og:image:secure_url" content="{{ page_products[0].images[0] }}">
+    {% endif %}
+    <meta property="og:type" content="website">
     <style>
         body { background-color: {{ config.colors.bg_color }}; {% if config.bg_image %}background-image: url('{{ config.bg_image }}'); background-size: cover; background-position: center; background-attachment: fixed; {% endif %} font-family: Tahoma, sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; box-sizing: border-box; }
         {% if config.bg_image and controls.enable_bg_overlay %}body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); z-index: -1; }{% endif %}
@@ -697,7 +706,7 @@ default_html_template = """
                         <b style="color: #25d366;">{{ a.current_price }}</b>
                     {% endif %}
                 </span>
-                <span>الحد الأدنى للمزايدة: <b>{{ a.min_bid }}</b></span>
+                <span>الحد الأدنى للزيادة: <b>{{ a.min_bid }}</b></span>
                 {% if a.max_price %}<span>الحد الأقصى (الشراء الفوري): <b style="color: #ff5252;">{{ a.max_price }}</b></span>{% endif %}
             </div>
             <a href="/auction/{{ a.id }}" class="bid-btn">مشاركة وعرض تفاصيل المزاد 🔨</a>
@@ -941,6 +950,9 @@ default_html_template = """
                         finalUrl = `https://t.me/${cleanInput}`;
                     }
                 }
+            } else if (lowerName.includes('واتساب') || lowerName.includes('whatsapp') || /^[0-9+]+$/.test(finalUrl)) {
+                const cleanNum = finalUrl.replace(/[^0-9]/g, '');
+                finalUrl = `https://wa.me/${cleanNum}`;
             } else if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
                 finalUrl = `https://${finalUrl}`;
             }
@@ -1099,6 +1111,13 @@ auction_detail_template = """
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مزاد: {{ auction.title }}</title>
+    <meta property="og:title" content="مزاد: {{ auction.title }}">
+    <meta property="og:description" content="{{ auction.description[:100] if auction.description else config.subtitle }}">
+    {% if auction.images and auction.images|length > 0 %}
+    <meta property="og:image" content="{{ auction.images[0] }}">
+    <meta property="og:image:secure_url" content="{{ auction.images[0] }}">
+    {% endif %}
+    <meta property="og:type" content="website">
     <style>
         body { background: #000; color: #fff; font-family: Tahoma, sans-serif; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .box { background: #111; border: 1px solid #d97706; border-radius: 12px; padding: 25px; width: 100%; max-width: 600px; box-sizing: border-box; margin-top: 20px; }
@@ -1131,7 +1150,7 @@ auction_detail_template = """
                 <b style="color: #25d366;">{{ auction.current_price }}</b>
             {% endif %}
         </div>
-        <div class="info"><span>الحد الأدنى للمزايدة:</span><b>{{ auction.min_bid }}</b></div>
+        <div class="info"><span>الحد الأدنى للزيادة:</span><b>{{ auction.min_bid }}</b></div>
         {% if auction.max_price %}<div class="info"><span>الحد الأقصى (الشراء الفوري):</span><b style="color: #ff5252;">{{ auction.max_price }}</b></div>{% endif %}
         {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
         <form action="/bid/{{ auction.id }}" method="POST" style="margin-top: 20px;">
@@ -1890,25 +1909,38 @@ def place_bid(a_id):
     
     bid_raw = int(bid_amount_str)
     
+    # استخراج السعر الحالي الأساسي أو أعلى مزايدة
     current_highest_raw = 0
     if auction.get('bids') and len(auction['bids']) > 0:
         current_highest_raw = max(b['raw_amount'] for b in auction['bids'])
     else:
-        current_highest_raw = int(re.sub(r'[^0-9]', '', str(auction['current_price'])))
+        current_highest_raw = int(re.sub(r'[^0-9]', '', str(auction['starting_price'])))
     
+    # استخراج الحد الأدنى للزيادة المطلوبة
+    min_increment = 1
+    try:
+        min_increment = int(re.sub(r'[^0-9]', '', str(auction['min_bid'])))
+    except Exception:
+        min_increment = 1
+
+    # الشرط 1: منع المزايدة بأقل من السعر الحالي أو أقل من خطوة الزيادة المطلوبة فوقه
     if bid_raw <= current_highest_raw:
         return render_template_string(auction_detail_template, auction=auction, config=site_config, controls=site_controls, vis=text_visibility, error=f"❌ خطأ: عذراً، يجب أن تكون المزايدة أعلى من السعر الحالي ({current_highest_raw})!")
 
-    formatted_bid_amount = format_price(str(bid_raw))
-    
-    if auction.get('max_price'):
+    if bid_raw < (current_highest_raw + min_increment):
+        return render_template_string(auction_detail_template, auction=auction, config=site_config, controls=site_controls, vis=text_visibility, error=f"❌ خطأ: الحد الأدنى للزيادة المطلوبة هو {min_increment}، فيجب ألا تقل مزايدتك عن ({current_highest_raw + min_increment})!")
+
+    # الشرط 2: ممنوع أن يزيد المزايد أكثر من الحد الأقصى للمزايدة (الشراء الفوري) إذا كان مُحدداً
+    if auction.get('max_price') and str(auction.get('max_price')).strip() != '':
         try:
             max_val = int(re.sub(r'[^0-9]', '', str(auction['max_price'])))
             if bid_raw > max_val:
-                return render_template_string(auction_detail_template, auction=auction, config=site_config, controls=site_controls, vis=text_visibility, error=f"❌ خطأ: عذراً، لا يمكنك تقديم مزايدة أكبر من الحد الأقصى ({auction['max_price']})!")
-        except Exception: pass
+                return render_template_string(auction_detail_template, auction=auction, config=site_config, controls=site_controls, vis=text_visibility, error=f"❌ خطأ: عذراً، لا يمكنك تقديم مزايدة أكبر من الحد الأقصى للشراء الفوري ({auction['max_price']})!")
+        except Exception: 
+            pass
         
     if bid_raw and bidder_name:
+        formatted_bid_amount = format_price(str(bid_raw))
         if 'bids' not in auction: auction['bids'] = []
         auction['bids'].append({"name": bidder_name, "phone": bidder_phone, "amount": formatted_bid_amount, "raw_amount": bid_raw})
         auction['bids'] = sorted(auction['bids'], key=lambda x: x['raw_amount'], reverse=True)
